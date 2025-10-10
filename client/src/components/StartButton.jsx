@@ -12,11 +12,11 @@ export default function StartButton({ onClick }) {
         >
           Start
         </span>
-        <span className="block text-[10px] text-black leading-tight">
-          Tekan untuk melihat
+        <span className="block text-[8px] font-semibold text-black leading-tight">
+          <i>Tekan untuk melihat</i>
         </span>
-        <span className="block text-[10px] text-black leading-tight">
-          rute terbaik!
+        <span className="block text-[8px] font-semibold text-black leading-tight">
+          <i>rute terbaik!</i>
         </span>
       </div>
     </button>

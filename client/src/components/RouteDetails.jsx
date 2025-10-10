@@ -10,7 +10,7 @@ export default function RouteDetails({ details }) {
 
   return (
     <div className="w-full px-6 py-4">
-      <div className="flex items-start gap-8">
+      <div className="flex items-center gap-8">
         <h2 className="text-3xl font-bold text-black whitespace-nowrap">
           Detail<br />Rute
         </h2>

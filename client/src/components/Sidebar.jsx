@@ -34,23 +34,23 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-20 lg:w-48 bg-white shadow-md rounded-br-2xl rounded-tr-2xl border-3 border-black min-h-screen flex flex-col items-center py-6 gap-8">
+    <aside className="w-20 lg:w-48 bg-white shadow-md rounded-br-2xl rounded-tr-2xl border-3 border-black min-h-screen flex flex-col items-center justify-center gap-12">
       {navItems.map((item) => {
         const isActive = pathname === item.href;
         return (
           <Link
             key={item.href}
             href={item.href}
-            className="flex flex-col items-center gap-1 text-sm text-black hover:opacity-80 transition-opacity"
+            className="flex flex-col items-center gap-2 text-black hover:opacity-80 transition-opacity"
           >
             <Image
               src={isActive ? item.activeIcon : item.icon}
               alt={item.label}
-              width={28}
-              height={28}
+              width={42}
+              height={42}  
               priority
             />
-            <span>{item.label}</span>
+            <span className="text-base">{item.label}</span>
           </Link>
         );
       })}

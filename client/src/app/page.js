@@ -24,7 +24,7 @@ export default function Home() {
       <Map />
       
       {/* Details and Start Button Section */}
-      <div className="flex flex-col md:flex-row items-start gap-4">
+      <div className="flex flex-col md:flex-row items-center gap-4">
         <StartButton onClick={handleStart} />
         <div className="bg-white rounded-lg shadow-md border-2 border-black flex-1">
           <RouteDetails details={routeDetails} />
