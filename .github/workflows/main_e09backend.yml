@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22.x'
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: server/package-lock.json
 
       - name: Install dependencies
         run: npm install
@@ -71,4 +71,5 @@ jobs:
           app-name: 'e09backend'
           slot-name: 'Production'
           package: .
+
 
