@@ -37,6 +37,8 @@ jobs:
         run: npm run build --if-present
 
       - name: Test (optional)
+        env:
+          MONGODB_URI: "mongodb://localhost:27017/testdb"
         run: npm test --if-present
 
       - name: Upload artifact for deployment job
@@ -71,5 +73,6 @@ jobs:
           app-name: 'e09backend'
           slot-name: 'Production'
           package: .
+
 
 
