@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend  # fokus hanya ke folder backend
+        working-directory: server  
 
     permissions:
-      contents: read # Required for actions/checkout
+      contents: read 
 
     steps:
       - name: Checkout repository
@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: backend  # hanya folder backend yang di-upload
+          path: server  
 
   deploy:
     runs-on: ubuntu-latest
@@ -71,3 +71,4 @@ jobs:
           app-name: 'e09backend'
           slot-name: 'Production'
           package: .
+
