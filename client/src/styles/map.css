@@ -1,0 +1,93 @@
+/* Route styling */
+.leaflet-routing-line {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.leaflet-routing-line:hover {
+  filter: brightness(1.2);
+  stroke-width: 6;
+}
+
+/* Custom popup styling */
+.route-popup {
+  padding: 10px;
+  border-radius: 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.route-popup-header {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1a1a1a;
+}
+
+.route-popup-content {
+  display: grid;
+  gap: 6px;
+}
+
+.route-popup-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4b5563;
+}
+
+.route-popup-stat svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Route animation */
+@keyframes dashOffset {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.leaflet-routing-line path {
+  animation: dashOffset 1s linear infinite;
+}
+
+/* Hide unnecessary routing machine controls */
+.leaflet-routing-container {
+  display: none;
+}
+
+/* Custom marker styling */
+.custom-div-icon {
+  transition: all 0.3s ease;
+}
+
+.custom-div-icon:hover {
+  transform: scale(1.2);
+}
+
+/* Route loading indicator */
+.route-loading {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  z-index: 1000;
+  font-size: 14px;
+  animation: fadeInOut 1.5s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Hide OSRM attribution */
+.leaflet-routing-container {
+  display: none !important;
+}
