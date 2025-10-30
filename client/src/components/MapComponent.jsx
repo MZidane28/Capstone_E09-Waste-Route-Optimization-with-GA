@@ -85,6 +85,7 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
   const routesRef = useRef([]);
   const [collectionPoints, setCollectionPoints] = useState([]);
   const [selectedTruck, setSelectedTruck] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Initialize collection points
   useEffect(() => {
@@ -347,19 +348,187 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
     }
   }, [onRandomize]);
 
+  // Effect to handle map resize when fullscreen changes
+  useEffect(() => {
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current.invalidateSize();
+      }, 300);
+    }
+  }, [isFullscreen]);
+
+  // Create refs for fullscreen mode
+  const fullscreenMapRef = useRef(null);
+  const fullscreenRoutesRef = useRef([]);
+  const fullscreenMarkersRef = useRef([]);
+  const fullscreenMapInstanceRef = useRef(null);
+
+  // Function to update routes on a specific map instance
+  const updateMapRoutes = (mapInstance, routesContainer) => {
+    // Clear existing routes
+    routesContainer.forEach(route => route.remove());
+    routesContainer.length = 0;
+
+    if (showRoutes) {
+      const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+      
+      // Filter routes based on selected truck
+      const routesToShow = selectedTruck 
+        ? routes.filter(route => route.id.toString() === selectedTruck)
+        : routes;
+
+      routesToShow.forEach(route => {
+        if (route.points.length > 1) {
+          const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
+          
+          const routingControl = L.Routing.control({
+            waypoints,
+            router: L.Routing.osrmv1({
+              serviceUrl: 'https://router.project-osrm.org/route/v1',
+              profile: 'driving'
+            }),
+            lineOptions: {
+              styles: [
+                { color: route.color, weight: 4, opacity: 0.8 },
+                { color: 'white', weight: 2, opacity: 0.3, dashArray: '10,10' }
+              ],
+              extendToWaypoints: true,
+              missingRouteTolerance: 100
+            },
+            routeWhileDragging: false,
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: false,
+            showAlternatives: false,
+            show: false,
+            createMarker: () => null
+          }).addTo(mapInstance);
+
+          routesContainer.push(routingControl);
+        }
+      });
+    }
+  };
+
+  // Effect to handle routes on both maps
+  useEffect(() => {
+    if (mapRef.current) {
+      updateMapRoutes(mapRef.current, routesRef.current);
+    }
+    if (fullscreenMapInstanceRef.current) {
+      updateMapRoutes(fullscreenMapInstanceRef.current, fullscreenRoutesRef.current);
+    }
+  }, [showRoutes, collectionPoints, selectedTruck]);
+
+  // Effect to handle map in fullscreen mode
+  useEffect(() => {
+    if (isFullscreen && mapRef.current && fullscreenMapRef.current) {
+      // Clear previous fullscreen routes
+      fullscreenRoutesRef.current.forEach(route => route.remove());
+      fullscreenRoutesRef.current = [];
+      
+      // Clear previous fullscreen markers
+      fullscreenMarkersRef.current.forEach(marker => marker.remove());
+      fullscreenMarkersRef.current = [];
+
+      // Create new map in fullscreen container
+      const fullscreenMap = L.map(fullscreenMapRef.current, {
+        center: mapRef.current.getCenter(),
+        zoom: mapRef.current.getZoom(),
+        scrollWheelZoom: true
+      });
+
+      fullscreenMapInstanceRef.current = fullscreenMap;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(fullscreenMap);
+
+      // Copy markers to fullscreen map
+      markersRef.current.forEach(marker => {
+        const newMarker = L.marker(marker.getLatLng(), {
+          icon: marker.options.icon
+        }).addTo(fullscreenMap);
+        if (marker._popup) {
+          newMarker.bindPopup(marker._popup._content);
+        }
+        fullscreenMarkersRef.current.push(newMarker);
+      });
+
+      // Update routes for fullscreen map
+      updateMapRoutes(fullscreenMap, fullscreenRoutesRef.current);
+
+      return () => {
+        fullscreenMapInstanceRef.current = null;
+        fullscreenMap.remove();
+      };
+    }
+  }, [isFullscreen]);
+
   return (
-    <div className="bg-white p-6 rounded-[18px] shadow-md border-3 border-black">
-      <h2 className="text-xl text-black font-bold mb-4">Peta Rute</h2>
-      <div style={{ height: '300px', width: '100%', position: 'relative' }}>
-        {showRoutes && (
-          <TruckSelector
-            trucks={SOURCE_POINTS}
-            selectedTruck={selectedTruck}
-            onSelect={setSelectedTruck}
-          />
-        )}
-        <div ref={mapContainerRef} className="w-full h-full rounded-lg" />
+    <>
+      <div className="bg-white p-3 sm:p-4 md:p-6 rounded-[18px] shadow-md border-2 sm:border-3 border-black">
+        <h2 className="text-xl sm:text-2xl text-black font-bold mb-3 sm:mb-4 px-2">Peta Rute</h2>
+        <div className="map-container">
+          <div className="map-controls">
+            {showRoutes && (
+              <div className="truck-selector">
+                <TruckSelector
+                  trucks={SOURCE_POINTS}
+                  selectedTruck={selectedTruck}
+                  onSelect={setSelectedTruck}
+                />
+              </div>
+            )}
+            <button 
+              onClick={() => setIsFullscreen(true)}
+              className="fullscreen-button"
+              title="View fullscreen"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path fillRule="evenodd" d="M15 3.75a.75.75 0 01.75-.75h4.5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0V5.56l-3.97 3.97a.75.75 0 11-1.06-1.06l3.97-3.97h-2.69a.75.75 0 01-.75-.75zm-12 0A.75.75 0 013.75 3h4.5a.75.75 0 010 1.5H5.56l3.97 3.97a.75.75 0 01-1.06 1.06L4.5 5.56v2.69a.75.75 0 01-1.5 0v-4.5zm12 16.5a.75.75 0 01.75.75v4.5a.75.75 0 01-.75.75h-4.5a.75.75 0 010-1.5h2.69l-3.97-3.97a.75.75 0 111.06-1.06l3.97 3.97v-2.69a.75.75 0 01.75-.75zm-12 0a.75.75 0 01.75.75v2.69l3.97-3.97a.75.75 0 111.06 1.06l-3.97 3.97h2.69a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75v-4.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          <div ref={mapContainerRef} className="w-full h-full rounded-lg relative" />
+        </div>
       </div>
-    </div>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && (
+        <>
+          <div 
+            className={`map-fullscreen-overlay ${isFullscreen ? 'active' : ''}`}
+            onClick={() => setIsFullscreen(false)}
+          />
+          <div className={`map-fullscreen-container ${isFullscreen ? 'active' : ''}`}>
+            <div className="map-fullscreen-header">
+              <h2 className="text-xl font-bold text-black">Peta Rute</h2>
+              {showRoutes && (
+                <div className="ml-8">
+                  <TruckSelector
+                    trucks={SOURCE_POINTS}
+                    selectedTruck={selectedTruck}
+                    onSelect={setSelectedTruck}
+                  />
+                </div>
+              )}
+              <button 
+                onClick={() => setIsFullscreen(false)}
+                className="fullscreen-button"
+                title="Exit fullscreen"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                  <path fillRule="evenodd" d="M15 3.75a.75.75 0 01.75-.75h4.5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0V5.56l-3.97 3.97a.75.75 0 11-1.06-1.06l3.97-3.97h-2.69a.75.75 0 01-.75-.75zm-12 0A.75.75 0 013.75 3h4.5a.75.75 0 010 1.5H5.56l3.97 3.97a.75.75 0 01-1.06 1.06L4.5 5.56v2.69a.75.75 0 01-1.5 0v-4.5zm12 16.5a.75.75 0 01.75.75v4.5a.75.75 0 01-.75.75h-4.5a.75.75 0 010-1.5h2.69l-3.97-3.97a.75.75 0 111.06-1.06l3.97 3.97v-2.69a.75.75 0 01.75-.75zm-12 0a.75.75 0 01.75.75v2.69l3.97-3.97a.75.75 0 111.06 1.06l-3.97 3.97h2.69a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75v-4.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <div style={{ height: 'calc(100% - 60px)', marginTop: '60px' }}>
+              <div ref={fullscreenMapRef} className="w-full h-full rounded-b-2xl" />
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
