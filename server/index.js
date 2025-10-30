@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import connectDB from "./configs/database.js";
 import binRouter from "./routes/binRoutes.js";
 import solutionRouter from "./routes/solutionRoutes.js";
+import optimizeRouter from "./routes/optimizeRoutes.js";
+
 import mqtt from "mqtt";
 dotenv.config();
 
@@ -20,6 +22,7 @@ app.use(cookieParser());
 
 app.use('/api/v1/bins',binRouter);
 app.use('/api/v1/solutions',solutionRouter);
+app.use('/api/v1/optimize', optimizeRouter);
 
 app.get("/", (req, res) => {
   res.send('Welcome to Waste Collection Management API');
