@@ -1,9 +1,11 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
 import RandomButton from "@/components/RandomButton";
+import NavigationChunks from "@/components/NavigationChunks";
+import { mockRouteData } from "@/lib/mockRoutes";
 
 export default function Simulasi() {
   const [showRoutes, setShowRoutes] = useState(false);
@@ -13,6 +15,18 @@ export default function Simulasi() {
     needsCollection: 0,
     points: []
   });
+  const [routeWaypoints, setRouteWaypoints] = useState([]);
+  const [selectedTruckId, setSelectedTruckId] = useState("Truck-01");
+
+  // Load mock route data when routes are shown
+  useEffect(() => {
+    if (showRoutes) {
+      const selectedRoute = mockRouteData.find(route => route.truck_id === selectedTruckId);
+      setRouteWaypoints(selectedRoute ? selectedRoute.waypoints : []);
+    } else {
+      setRouteWaypoints([]);
+    }
+  }, [showRoutes, selectedTruckId]);
   
   const handleStart = () => {
     setShowRoutes(true);
@@ -55,6 +69,14 @@ export default function Simulasi() {
 
           {/* Route Details Section */}
           <RouteDetails details={routeDetails} isMobile={true} />
+
+          {/* Navigation Chunks Section - Mobile */}
+          {showRoutes && routeWaypoints.length > 0 && (
+            <NavigationChunks 
+              waypoints={routeWaypoints} 
+              truckId={selectedTruckId}
+            />
+          )}
         </div>
       </div>
 
@@ -80,6 +102,16 @@ export default function Simulasi() {
             <RouteDetails details={routeDetails} />
           </div>
         </div>
+
+        {/* Navigation Chunks Section - Desktop */}
+        {showRoutes && routeWaypoints.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md border-2 border-black">
+            <NavigationChunks 
+              waypoints={routeWaypoints} 
+              truckId={selectedTruckId}
+            />
+          </div>
+        )}
       </div>
     </>
   );

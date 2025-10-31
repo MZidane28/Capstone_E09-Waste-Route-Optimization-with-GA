@@ -3,14 +3,39 @@ import { useState } from 'react';
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
+import NavigationChunks from "@/components/NavigationChunks";
+import { generateMockRoutes, SOURCE_POINTS } from "@/lib/mapUtils";
 
 export default function Home() {
   const [showRoutes, setShowRoutes] = useState(false);
+  const [selectedTruckId, setSelectedTruckId] = useState(null);
   const [mapData, setMapData] = useState({
     total: 200,
     needsCollection: 0,
     points: []
   });
+
+  // Calculate route waypoints when routes are shown
+  const routeWaypoints = (() => {
+    if (!showRoutes || mapData.points.length === 0) return [];
+    
+    const routes = generateMockRoutes(SOURCE_POINTS, mapData.points);
+    let selectedRoute;
+    
+    if (selectedTruckId) {
+      selectedRoute = routes.find(route => route.id.toString() === selectedTruckId);
+      console.log('Selected truck:', selectedTruckId, 'Found route:', selectedRoute); // Debug log
+    } else {
+      selectedRoute = routes[0];
+    }
+    
+    if (!selectedRoute) {
+      console.log('No route found for truck:', selectedTruckId); // Debug log
+      return [];
+    }
+    
+    return selectedRoute.points.map(([lat, lng]) => ({ lat, lng }));
+  })();
   
   const handleStart = () => {
     setShowRoutes(true);
@@ -32,10 +57,12 @@ export default function Home() {
         
         <div className="flex-1 px-4 space-y-4 pb-20">
           {/* Map Section */}
-            <MapWrapper 
-              showRoutes={showRoutes}
-              onDataChange={setMapData}
-            />
+          <MapWrapper 
+            showRoutes={showRoutes}
+            onDataChange={setMapData}
+            selectedTruckId={selectedTruckId}
+            onTruckSelect={setSelectedTruckId}
+          />
           
           {/* Button Section */}
           <div className="flex justify-center">
@@ -44,6 +71,16 @@ export default function Home() {
 
           {/* Route Details Section */}
           <RouteDetails details={routeDetails} isMobile={true} />
+
+          {/* Navigation Section */}
+          {showRoutes && routeWaypoints.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md border-2 border-black">
+              <NavigationChunks 
+                waypoints={routeWaypoints} 
+                truckId={selectedTruckId}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -56,14 +93,28 @@ export default function Home() {
         <MapWrapper 
           showRoutes={showRoutes}
           onDataChange={setMapData}
+          selectedTruckId={selectedTruckId}
+          onTruckSelect={setSelectedTruckId}
         />
         
-        {/* Details and Start Button Section */}
-        <div className="flex items-center gap-4">
-          <StartButton onClick={handleStart} />
-          <div className="bg-white rounded-lg shadow-md border-2 border-black flex-1">
-            <RouteDetails details={routeDetails} />
+        {/* Navigation and Start Button Section */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <StartButton onClick={handleStart} />
+            <div className="bg-white rounded-lg shadow-md border-2 border-black flex-1">
+              <RouteDetails details={routeDetails} />
+            </div>
           </div>
+
+          {/* Navigation Section */}
+          {showRoutes && routeWaypoints.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md border-2 border-black">
+              <NavigationChunks 
+                waypoints={routeWaypoints} 
+                truckId={selectedTruckId}
+              />
+            </div>
+          )}
         </div>
       </div>
     </>

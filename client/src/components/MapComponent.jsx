@@ -78,13 +78,18 @@ const truckIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
-export default function MapComponent({ onRandomize, showRoutes = false, onDataChange }) {
+export default function MapComponent({ 
+  onRandomize, 
+  showRoutes = false, 
+  onDataChange,
+  selectedTruckId,
+  onTruckSelect
+}) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const markersRef = useRef([]);
   const routesRef = useRef([]);
   const [collectionPoints, setCollectionPoints] = useState([]);
-  const [selectedTruck, setSelectedTruck] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Initialize collection points
@@ -199,8 +204,8 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Filter routes based on selected truck
-      const routesToShow = selectedTruck 
-        ? routes.filter(route => route.id.toString() === selectedTruck)
+      const routesToShow = selectedTruckId 
+        ? routes.filter(route => route.id.toString() === selectedTruckId)
         : routes;
 
       routesToShow.forEach(route => {
@@ -327,7 +332,7 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
         }
       });
     }
-  }, [showRoutes, collectionPoints, selectedTruck]);
+  }, [showRoutes, collectionPoints, selectedTruckId]);
 
   // Define randomize function
   const handleRandomize = () => {
@@ -338,7 +343,9 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
         needsCollection: Math.random() >= 0.2 // 20% chance of needing collection
       }))
     );
-    setSelectedTruck(null); // Reset truck selection
+    if (onTruckSelect) {
+      onTruckSelect(null); // Reset truck selection
+    }
   };
 
   // Set up randomize callback
@@ -373,8 +380,8 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Filter routes based on selected truck
-      const routesToShow = selectedTruck 
-        ? routes.filter(route => route.id.toString() === selectedTruck)
+      const routesToShow = selectedTruckId 
+        ? routes.filter(route => route.id.toString() === selectedTruckId)
         : routes;
 
       routesToShow.forEach(route => {
@@ -418,7 +425,7 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
     if (fullscreenMapInstanceRef.current) {
       updateMapRoutes(fullscreenMapInstanceRef.current, fullscreenRoutesRef.current);
     }
-  }, [showRoutes, collectionPoints, selectedTruck]);
+  }, [showRoutes, collectionPoints, selectedTruckId]);
 
   // Effect to handle map in fullscreen mode
   useEffect(() => {
@@ -475,8 +482,8 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
               <div className="truck-selector">
                 <TruckSelector
                   trucks={SOURCE_POINTS}
-                  selectedTruck={selectedTruck}
-                  onSelect={setSelectedTruck}
+                  selectedTruck={selectedTruckId}
+                  onSelect={onTruckSelect}
                 />
               </div>
             )}
@@ -508,8 +515,8 @@ export default function MapComponent({ onRandomize, showRoutes = false, onDataCh
                 <div className="ml-8">
                   <TruckSelector
                     trucks={SOURCE_POINTS}
-                    selectedTruck={selectedTruck}
-                    onSelect={setSelectedTruck}
+                    selectedTruck={selectedTruckId}
+                    onSelect={onTruckSelect}
                   />
                 </div>
               )}
