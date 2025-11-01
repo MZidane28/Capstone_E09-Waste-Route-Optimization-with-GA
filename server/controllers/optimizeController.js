@@ -24,7 +24,7 @@ export const optimizeRoutes = async (req, res) => {
       subMatrix: subMatrix
       // gaResult: gaResult, // add later
     });
-
+ 
   } catch (error) {
     console.error('Error optimizing routes:', error);
     res.status(500).json({ error: error.message });

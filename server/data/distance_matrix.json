@@ -1,5 +1,5 @@
 {
-  "bin_ids": ["bin1", "bin2", "bin3", "bin4", "bin5"],
+  "bin_ids": ["depot", "bin1", "bin2", "bin3", "bin4"],
   "matrix": [
     [0, 4.2, 7.5, 3.1, 8.6],
     [4.2, 0, 5.3, 6.7, 7.9],
