@@ -1,0 +1,44 @@
+/* Default styles for larger screens */
+.navbar {
+  @apply bg-white shadow-md rounded-bl-2xl rounded-br-2xl border-2 sm:border-3 border-black;
+  position: relative;
+  z-index: 50;
+}
+
+/* Mobile navigation styles */
+@media (max-width: 640px) {
+  .navbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+    padding: 8px 0;
+  }
+
+  .navbar-container {
+    padding: 0 16px;
+  }
+
+  .profile-section {
+    display: none;
+  }
+
+  .logo-section {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Adjust main content padding for mobile */
+.main-content {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+/* Add safe area padding for iOS devices */
+@supports (padding: max(0px)) {
+  .navbar {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
