@@ -205,7 +205,7 @@ export default function Home() {
         {/* Loading State */}
         {loading && (
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 text-center">
-            <p className="text-blue-600">📡 Loading data from backend...</p>
+            <p className="text-blue-600">Loading data...</p>
           </div>
         )}
 
