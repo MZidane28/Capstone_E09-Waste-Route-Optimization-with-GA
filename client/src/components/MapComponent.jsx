@@ -85,7 +85,8 @@ export default function MapComponent({
   selectedTruckId,
   onTruckSelect,
   collectionPoints: externalCollectionPoints = null,
-  useRealData = false
+  useRealData = false,
+  onRoutesGenerated
 }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -210,6 +211,11 @@ export default function MapComponent({
 
     if (showRoutes) {
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+      
+      // Send routes to parent component
+      if (onRoutesGenerated) {
+        onRoutesGenerated(routes);
+      }
       
       // Filter routes based on selected truck
       const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
