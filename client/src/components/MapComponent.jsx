@@ -83,7 +83,9 @@ export default function MapComponent({
   showRoutes = false, 
   onDataChange,
   selectedTruckId,
-  onTruckSelect
+  onTruckSelect,
+  collectionPoints: externalCollectionPoints = null,
+  useRealData = false
 }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -94,12 +96,18 @@ export default function MapComponent({
 
   // Initialize collection points
   useEffect(() => {
-    setCollectionPoints(generateCollectionPoints());
-  }, []);
+    if (useRealData && externalCollectionPoints) {
+      // Use data from backend
+      setCollectionPoints(externalCollectionPoints);
+    } else if (!useRealData) {
+      // Use mock data for simulation page
+      setCollectionPoints(generateCollectionPoints());
+    }
+  }, [externalCollectionPoints, useRealData]);
 
-  // Update parent component with current data
+  // Update parent component with current data (only for simulation/mock data)
   useEffect(() => {
-    if (onDataChange) {
+    if (onDataChange && !useRealData && collectionPoints.length > 0) {
       const needsCollection = collectionPoints.filter(point => point.fillLevel >= 80).length;
       onDataChange({
         total: collectionPoints.length,
@@ -107,7 +115,7 @@ export default function MapComponent({
         points: collectionPoints
       });
     }
-  }, [collectionPoints, onDataChange]);
+  }, [collectionPoints, onDataChange, useRealData]);
 
   // Initialize map
   useEffect(() => {
