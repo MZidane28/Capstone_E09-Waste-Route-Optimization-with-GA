@@ -344,7 +344,7 @@ export default function ApiTest() {
           </table>
           {bins.length === 0 && (
             <p className="text-center text-gray-500 py-8">
-              No bins found. Click "Get All Bins" to fetch data.
+              No bins found. Click &ldquo;Get All Bins&rdquo; to fetch data.
             </p>
           )}
         </div>
@@ -354,12 +354,12 @@ export default function ApiTest() {
       <div className="mt-6 p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
         <h2 className="font-bold text-lg mb-2">📖 Instructions:</h2>
         <ol className="list-decimal list-inside space-y-1 text-sm">
-          <li>Click "Get All Bins" untuk fetch semua data bins dari database</li>
-          <li>Click "Get Random Bins" untuk fetch 3 random bins</li>
-          <li>Click "Create New Bin" untuk create bin baru dengan random data</li>
-          <li>Click "Update First Bin" untuk update demand bin pertama</li>
-          <li>Click "Delete Non-Real Bin" untuk delete bin non-real pertama</li>
-          <li>Click "Optimize Routes" untuk test optimize endpoint</li>
+          <li>Click &ldquo;Get All Bins&rdquo; untuk fetch semua data bins dari database</li>
+          <li>Click &ldquo;Get Random Bins&rdquo; untuk fetch 3 random bins</li>
+          <li>Click &ldquo;Create New Bin&rdquo; untuk create bin baru dengan random data</li>
+          <li>Click &ldquo;Update First Bin&rdquo; untuk update demand bin pertama</li>
+          <li>Click &ldquo;Delete Non-Real Bin&rdquo; untuk delete bin non-real pertama</li>
+          <li>Click &ldquo;Optimize Routes&rdquo; untuk test optimize endpoint</li>
         </ol>
       </div>
     </div>
