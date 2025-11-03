@@ -16,7 +16,7 @@ export default function Simulasi() {
     points: []
   });
   const [routeWaypoints, setRouteWaypoints] = useState([]);
-  const [selectedTruckId, setSelectedTruckId] = useState("Truck-01");
+  const [selectedTruckId, setSelectedTruckId] = useState(null); // Set to null for "All Trucks" by default
 
   // Load mock route data when routes are shown
   useEffect(() => {
@@ -34,9 +34,14 @@ export default function Simulasi() {
 
   const handleRandom = () => {
     setShowRoutes(false); // Hide routes first
+    setSelectedTruckId(null); // Reset truck selection
     if (randomizeFn) {
       randomizeFn();
     }
+  };
+
+  const handleTruckSelect = (truckId) => {
+    setSelectedTruckId(truckId);
   };
 
   const routeDetails = {
@@ -59,6 +64,8 @@ export default function Simulasi() {
           showRoutes={showRoutes}
           onRandomize={setRandomizeFn}
           onDataChange={setMapData}
+          selectedTruckId={selectedTruckId}
+          onTruckSelect={handleTruckSelect}
         />
           
           {/* Buttons Section */}
@@ -90,6 +97,8 @@ export default function Simulasi() {
           showRoutes={showRoutes}
           onRandomize={setRandomizeFn}
           onDataChange={setMapData}
+          selectedTruckId={selectedTruckId}
+          onTruckSelect={handleTruckSelect}
         />
         
         {/* Details and Buttons Section */}

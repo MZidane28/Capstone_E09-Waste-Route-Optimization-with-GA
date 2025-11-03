@@ -212,8 +212,8 @@ export default function MapComponent({
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Filter routes based on selected truck
-      const routesToShow = selectedTruckId 
-        ? routes.filter(route => route.id.toString() === selectedTruckId)
+      const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
+        ? routes.filter(route => route.id === selectedTruckId)
         : routes;
 
       routesToShow.forEach(route => {
@@ -345,21 +345,21 @@ export default function MapComponent({
   // Define randomize function
   const handleRandomize = () => {
     setCollectionPoints(prevPoints => 
-      prevPoints.map(point => ({
-        ...point,
-        fillLevel: Math.floor(Math.random() * 100),
-        needsCollection: Math.random() >= 0.2 // 20% chance of needing collection
-      }))
+      prevPoints.map(point => {
+        const newFillLevel = Math.floor(Math.random() * 100);
+        return {
+          ...point,
+          fillLevel: newFillLevel,
+          needsCollection: newFillLevel >= 80
+        };
+      })
     );
-    if (onTruckSelect) {
-      onTruckSelect(null); // Reset truck selection
-    }
   };
 
   // Set up randomize callback
   useEffect(() => {
     if (onRandomize) {
-      onRandomize(handleRandomize);
+      onRandomize(() => handleRandomize);
     }
   }, [onRandomize]);
 
@@ -388,8 +388,8 @@ export default function MapComponent({
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Filter routes based on selected truck
-      const routesToShow = selectedTruckId 
-        ? routes.filter(route => route.id.toString() === selectedTruckId)
+      const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
+        ? routes.filter(route => route.id === selectedTruckId)
         : routes;
 
       routesToShow.forEach(route => {
