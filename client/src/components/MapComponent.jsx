@@ -83,7 +83,10 @@ export default function MapComponent({
   showRoutes = false, 
   onDataChange,
   selectedTruckId,
-  onTruckSelect
+  onTruckSelect,
+  collectionPoints: externalCollectionPoints = null,
+  useRealData = false,
+  onRoutesGenerated
 }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -94,12 +97,18 @@ export default function MapComponent({
 
   // Initialize collection points
   useEffect(() => {
-    setCollectionPoints(generateCollectionPoints());
-  }, []);
+    if (useRealData && externalCollectionPoints) {
+      // Use data from backend
+      setCollectionPoints(externalCollectionPoints);
+    } else if (!useRealData) {
+      // Use mock data for simulation page
+      setCollectionPoints(generateCollectionPoints());
+    }
+  }, [externalCollectionPoints, useRealData]);
 
-  // Update parent component with current data
+  // Update parent component with current data (only for simulation/mock data)
   useEffect(() => {
-    if (onDataChange) {
+    if (onDataChange && !useRealData && collectionPoints.length > 0) {
       const needsCollection = collectionPoints.filter(point => point.fillLevel >= 80).length;
       onDataChange({
         total: collectionPoints.length,
@@ -107,7 +116,7 @@ export default function MapComponent({
         points: collectionPoints
       });
     }
-  }, [collectionPoints, onDataChange]);
+  }, [collectionPoints, onDataChange, useRealData]);
 
   // Initialize map
   useEffect(() => {
@@ -203,9 +212,14 @@ export default function MapComponent({
     if (showRoutes) {
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
+      // Send routes to parent component
+      if (onRoutesGenerated) {
+        onRoutesGenerated(routes);
+      }
+      
       // Filter routes based on selected truck
-      const routesToShow = selectedTruckId 
-        ? routes.filter(route => route.id.toString() === selectedTruckId)
+      const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
+        ? routes.filter(route => route.id === selectedTruckId)
         : routes;
 
       routesToShow.forEach(route => {
@@ -337,21 +351,21 @@ export default function MapComponent({
   // Define randomize function
   const handleRandomize = () => {
     setCollectionPoints(prevPoints => 
-      prevPoints.map(point => ({
-        ...point,
-        fillLevel: Math.floor(Math.random() * 100),
-        needsCollection: Math.random() >= 0.2 // 20% chance of needing collection
-      }))
+      prevPoints.map(point => {
+        const newFillLevel = Math.floor(Math.random() * 100);
+        return {
+          ...point,
+          fillLevel: newFillLevel,
+          needsCollection: newFillLevel >= 80
+        };
+      })
     );
-    if (onTruckSelect) {
-      onTruckSelect(null); // Reset truck selection
-    }
   };
 
   // Set up randomize callback
   useEffect(() => {
     if (onRandomize) {
-      onRandomize(handleRandomize);
+      onRandomize(() => handleRandomize);
     }
   }, [onRandomize]);
 
@@ -380,8 +394,8 @@ export default function MapComponent({
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Filter routes based on selected truck
-      const routesToShow = selectedTruckId 
-        ? routes.filter(route => route.id.toString() === selectedTruckId)
+      const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
+        ? routes.filter(route => route.id === selectedTruckId)
         : routes;
 
       routesToShow.forEach(route => {

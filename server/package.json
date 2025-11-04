@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "test": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "seed": "node seed.js"
   },
   "author": "capstone e09 dev",
   "license": "ISC",

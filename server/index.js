@@ -33,11 +33,11 @@ app.get("/", (req, res) => {
 // app.use("/user", userRouter);
 //---------------------MQTT----------------
 // Koneksi ke broker MQTT (pakai broker.emqx.io)
-const brokerUrl = "mqtt://broker.emqx.io:1883";
+const brokerUrl = "mqtt://test.mosquitto.org:1883";
 const client = mqtt.connect(brokerUrl);
 
 // Topic yang dipakai STM32
-const topicPot = "Kel_5/pot";
+const topicPot = "capstone_E09/hcsr04";
 
 // Saat terkoneksi ke broker
 client.on("connect", () => {
