@@ -16,8 +16,10 @@ export default function Simulasi() {
     points: []
   });
   const [routeWaypoints, setRouteWaypoints] = useState([]);
-  const [selectedTruckId, setSelectedTruckId] = useState(null); // Set to null for "All Trucks" by default
+  const [selectedTruckId, setSelectedTruckId] = useState(1); // Default to Truck 1 instead of "All Trucks"
   const [generatedRoutes, setGeneratedRoutes] = useState([]); // Store routes from MapComponent
+  const [isGeneratingRoutes, setIsGeneratingRoutes] = useState(false); // Loading state for route generation
+  const [isRandomizing, setIsRandomizing] = useState(false); // Loading state for randomization
 
   // Update waypoints when truck selection or routes change
   useEffect(() => {
@@ -45,15 +47,25 @@ export default function Simulasi() {
   }, [showRoutes, selectedTruckId, generatedRoutes]);
   
   const handleStart = () => {
-    setShowRoutes(true);
+    setIsGeneratingRoutes(true);
+    // Simulate route generation delay
+    setTimeout(() => {
+      setShowRoutes(true);
+      setIsGeneratingRoutes(false);
+    }, 800); // 800ms delay for visual feedback
   };
 
   const handleRandom = () => {
+    setIsRandomizing(true);
     setShowRoutes(false); // Hide routes first
-    setSelectedTruckId(null); // Reset truck selection
+    setSelectedTruckId(1); // Reset to Truck 1 (not "All Trucks")
     if (randomizeFn) {
       randomizeFn();
     }
+    // Simulate randomization delay
+    setTimeout(() => {
+      setIsRandomizing(false);
+    }, 500); // 500ms delay for visual feedback
   };
 
   const handleTruckSelect = (truckId) => {
@@ -124,8 +136,27 @@ export default function Simulasi() {
           
           {/* Buttons Section */}
           <div className="flex justify-center gap-4 py-2">
-            <StartButton onClick={handleStart} />
-            <RandomButton onClick={handleRandom} />
+            {isGeneratingRoutes ? (
+              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
+                <div className="text-center">
+                  <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-1"></div>
+                  <span className="text-[8px] text-black font-semibold">Generating...</span>
+                </div>
+              </div>
+            ) : (
+              <StartButton onClick={handleStart} disabled={isRandomizing} />
+            )}
+            
+            {isRandomizing ? (
+              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
+                <div className="text-center">
+                  <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-1"></div>
+                  <span className="text-[8px] text-black font-semibold">Randomizing...</span>
+                </div>
+              </div>
+            ) : (
+              <RandomButton onClick={handleRandom} disabled={isGeneratingRoutes} />
+            )}
           </div>
 
           {/* Route Details Section */}
@@ -159,8 +190,27 @@ export default function Simulasi() {
         {/* Details and Buttons Section */}
         <div className="flex items-center gap-4">
           <div className="flex gap-4">
-            <StartButton onClick={handleStart} />
-            <RandomButton onClick={handleRandom} />
+            {isGeneratingRoutes ? (
+              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
+                <div className="text-center">
+                  <div className="animate-spin h-10 w-10 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <span className="text-xs text-black font-semibold">Generating...</span>
+                </div>
+              </div>
+            ) : (
+              <StartButton onClick={handleStart} disabled={isRandomizing} />
+            )}
+            
+            {isRandomizing ? (
+              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
+                <div className="text-center">
+                  <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <span className="text-xs text-black font-semibold">Randomizing...</span>
+                </div>
+              </div>
+            ) : (
+              <RandomButton onClick={handleRandom} disabled={isGeneratingRoutes} />
+            )}
           </div>
           <div className="bg-white rounded-lg shadow-md border-2 border-black flex-1">
             <RouteDetails details={routeDetails} />

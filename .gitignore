@@ -1,0 +1,15 @@
+# Coverage reports
+coverage/
+*.lcov
+*.coverage
+
+# Test results
+test-results/
+junit.xml
+
+# Jest cache
+.jest-cache/
+
+# Temporary test files
+*.test.tmp
+__snapshots__/

@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import 'leaflet-routing-machine';
+import 'leaflet-polylinedecorator';
 import { SOURCE_POINTS, generateCollectionPoints, generateMockRoutes } from '@/lib/mapUtils';
 import TruckSelector from './TruckSelector';
 import '@/styles/map.css';
@@ -78,6 +79,141 @@ const truckIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
+// Start point icon (green flag)
+const createStartIcon = () => {
+  return L.divIcon({
+    className: 'custom-start-icon',
+    html: `
+      <div style="
+        position: relative;
+        width: 30px;
+        height: 30px;
+      ">
+        <div style="
+          position: absolute;
+          top: 0;
+          left: 8px;
+          width: 3px;
+          height: 25px;
+          background-color: #059669;
+          border-radius: 2px;
+        "></div>
+        <div style="
+          position: absolute;
+          top: 2px;
+          left: 11px;
+          width: 0;
+          height: 0;
+          border-left: 12px solid #10b981;
+          border-top: 6px solid transparent;
+          border-bottom: 6px solid transparent;
+          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        "></div>
+        <div style="
+          position: absolute;
+          top: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #10b981;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          padding: 2px 6px;
+          border-radius: 4px;
+          white-space: nowrap;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        ">START</div>
+      </div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+  });
+};
+
+// End point icon (red checkered flag)
+const createEndIcon = () => {
+  return L.divIcon({
+    className: 'custom-end-icon',
+    html: `
+      <div style="
+        position: relative;
+        width: 30px;
+        height: 30px;
+      ">
+        <div style="
+          position: absolute;
+          top: 0;
+          left: 8px;
+          width: 3px;
+          height: 25px;
+          background-color: #dc2626;
+          border-radius: 2px;
+        "></div>
+        <div style="
+          position: absolute;
+          top: 2px;
+          left: 11px;
+          width: 16px;
+          height: 12px;
+          background: repeating-linear-gradient(
+            45deg,
+            #ef4444,
+            #ef4444 3px,
+            white 3px,
+            white 6px
+          );
+          border: 1px solid #dc2626;
+          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        "></div>
+        <div style="
+          position: absolute;
+          top: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #ef4444;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          padding: 2px 6px;
+          border-radius: 4px;
+          white-space: nowrap;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        ">FINISH</div>
+      </div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+  });
+};
+
+// Numbered waypoint icon
+const createNumberedIcon = (number, color) => {
+  return L.divIcon({
+    className: 'custom-numbered-icon',
+    html: `
+      <div style="
+        position: relative;
+        background-color: ${color};
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        font-family: system-ui, -apple-system, sans-serif;
+      ">${number}</div>
+    `,
+    iconSize: [34, 34], // Slightly larger to account for border
+    iconAnchor: [17, 17], // Center of the icon
+    popupAnchor: [0, -17], // Popup appears above the icon
+  });
+};
+
 export default function MapComponent({ 
   onRandomize, 
   showRoutes = false, 
@@ -90,7 +226,8 @@ export default function MapComponent({
 }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
-  const markersRef = useRef([]);
+  const markersRef = useRef([]); // Markers for bins (collection points)
+  const routeMarkersRef = useRef([]); // Markers for numbered stops when route is shown
   const routesRef = useRef([]);
   const [collectionPoints, setCollectionPoints] = useState([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -158,8 +295,16 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
+    // Clear existing markers with null check
+    markersRef.current.forEach(marker => {
+      if (marker && marker.remove) {
+        try {
+          marker.remove();
+        } catch (error) {
+          console.warn('Error removing marker:', error);
+        }
+      }
+    });
     markersRef.current = [];
 
     // Add collection points
@@ -187,11 +332,23 @@ export default function MapComponent({
       markersRef.current.push(marker);
     });
 
-    // Add source points (truck locations)
+    // Add source points (truck locations) - these serve as START and FINISH points
     SOURCE_POINTS.forEach(point => {
       const marker = L.marker([point.lat, point.lng], { icon: truckIcon })
         .addTo(mapRef.current)
-        .bindPopup(`<b>${point.name}</b>`);
+        .bindPopup(`
+          <div style="padding: 10px; text-align: center;">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${point.name}</div>
+            <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #10b981; font-size: 12px;">🚀 START</span>
+              <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
+            </div>
+            <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">Depot & Base Location</div>
+            <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
+            <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">Routes start and end here</div>
+          </div>
+        `);
       markersRef.current.push(marker);
     });
   }, [collectionPoints]);
@@ -200,9 +357,29 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear existing routes and loading state
-    routesRef.current.forEach(route => route.remove());
+    // Clear existing routes with null check
+    routesRef.current.forEach(route => {
+      if (route && route.remove) {
+        try {
+          route.remove();
+        } catch (error) {
+          console.warn('Error removing route:', error);
+        }
+      }
+    });
     routesRef.current = [];
+    
+    // Clear existing route markers (numbered stops)
+    routeMarkersRef.current.forEach(marker => {
+      if (marker && marker.remove) {
+        try {
+          marker.remove();
+        } catch (error) {
+          console.warn('Error removing route marker:', error);
+        }
+      }
+    });
+    routeMarkersRef.current = [];
     
     // Show loading indicator
     const loadingDiv = document.createElement('div');
@@ -210,6 +387,37 @@ export default function MapComponent({
     loadingDiv.innerHTML = 'Calculating routes...';
 
     if (showRoutes) {
+      // HIDE collection point markers (bins) when showing routes
+      markersRef.current.forEach(marker => {
+        if (marker && marker.remove) {
+          try {
+            marker.remove();
+          } catch (error) {
+            console.warn('Error hiding marker:', error);
+          }
+        }
+      });
+      // Don't clear the array - we'll need to restore them later
+      
+      // Re-add truck depot markers only
+      SOURCE_POINTS.forEach(point => {
+        const marker = L.marker([point.lat, point.lng], { icon: truckIcon })
+          .addTo(mapRef.current)
+          .bindPopup(`
+            <div style="padding: 10px; text-align: center;">
+              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${point.name}</div>
+              <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: #10b981; font-size: 12px;">🚀 START</span>
+                <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
+              </div>
+              <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">Depot & Base Location</div>
+              <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
+              <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">Routes start and end here</div>
+            </div>
+          `);
+      }); // Close SOURCE_POINTS.forEach
+      
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Send routes to parent component
@@ -226,22 +434,35 @@ export default function MapComponent({
         if (route.points.length > 1) { // Only show routes with collection points
           const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
           
-          // Create a routing control for real road routing
-          // Create route waypoints
-          // const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
+          // Get depot location from SOURCE_POINTS
+          const depot = SOURCE_POINTS.find(source => source.id === route.id);
+          const depotLatLng = L.latLng(depot.lat, depot.lng);
           
-          // Create routing control
-          // Create routing control with OSRM
+          // Log route generation
+          console.log(`🗺️ Generating route for ${route.name} with ${route.binCount} bins`);
+          console.log(`   Depot: [${depot.lat}, ${depot.lng}]`);
+          console.log(`   Total waypoints: ${waypoints.length} (depot → bins → depot)`);
+          
+          // Create routing control with OSRM (with better configuration)
           const routingControl = L.Routing.control({
             waypoints,
             router: L.Routing.osrmv1({
               serviceUrl: 'https://router.project-osrm.org/route/v1',
-              profile: 'driving'
+              profile: 'car', // Use 'car' instead of 'driving' for better compatibility
+              timeout: 10000, // Increase timeout to 10 seconds
+              suppressDemoServerWarning: true,
+              // Add request parameters for better routing
+              routingOptions: {
+                alternatives: false,
+                steps: true,
+                geometries: 'geojson',
+                overview: 'full'
+              }
             }),
             lineOptions: {
               styles: [
-                { color: route.color, weight: 4, opacity: 0.8 },
-                { color: 'white', weight: 2, opacity: 0.3, dashArray: '10,10' }
+                { color: route.color, weight: 6, opacity: 0.7 },
+                { color: 'white', weight: 3, opacity: 0.4, dashArray: '10, 10' }
               ],
               extendToWaypoints: true,
               missingRouteTolerance: 100
@@ -255,11 +476,77 @@ export default function MapComponent({
             createMarker: () => null // Don't create markers for waypoints
           }).addTo(mapRef.current);
 
-          // Add popup to the route line
+          // Add popup and arrows to the route line
           routingControl.on('routesfound', function(e) {
+            console.log(`✅ Route found successfully for ${route.name}`);
             const routes = e.routes;
             const totalDistance = routes.reduce((total, route) => total + route.summary.totalDistance, 0) / 1000; // Convert to km
             const totalTime = routes.reduce((total, route) => total + route.summary.totalTime, 0) / 60; // Convert to minutes
+            console.log(`   Distance: ${totalDistance.toFixed(2)} km, Time: ${totalTime.toFixed(1)} min`);
+
+            // Get the route coordinates for arrow decorator
+            const routeCoords = routes[0].coordinates.map(coord => [coord.lat, coord.lng]);
+            
+            // Add animated arrows to show direction
+            const arrowDecorator = L.polylineDecorator(routeCoords, {
+              patterns: [
+                {
+                  offset: '5%',
+                  repeat: 100,
+                  symbol: L.Symbol.arrowHead({
+                    pixelSize: 12,
+                    polygon: false,
+                    pathOptions: {
+                      stroke: true,
+                      weight: 3,
+                      color: route.color,
+                      opacity: 0.8,
+                      fillOpacity: 0
+                    }
+                  })
+                }
+              ]
+            }).addTo(mapRef.current);
+            
+            // Store decorator for cleanup
+            routesRef.current.push(arrowDecorator);
+            
+            // Add numbered markers for collection points AFTER route is created
+            // Route structure: [depot, bin1, bin2, ..., binN, depot]
+            // So we want markers for index 1 to length-2 (the bins only)
+            console.log(`   Creating ${waypoints.length - 2} numbered markers for bins`);
+            console.log(`   Route waypoints:`, waypoints.map((wp, idx) => `${idx}: [${wp.lat.toFixed(5)}, ${wp.lng.toFixed(5)}]`));
+            
+            for (let i = 1; i < waypoints.length - 1; i++) {
+              const waypointCoords = route.points[i];
+              const waypointLatLng = waypoints[i];
+              const stopNumber = i;
+              
+              console.log(`   📍 Creating Marker #${stopNumber}:`);
+              console.log(`      From route.points: [${waypointCoords[0].toFixed(5)}, ${waypointCoords[1].toFixed(5)}]`);
+              console.log(`      From waypoints: [${waypointLatLng.lat.toFixed(5)}, ${waypointLatLng.lng.toFixed(5)}]`);
+              
+              // Use explicit L.latLng to ensure proper coordinate object
+              const markerPosition = L.latLng(waypointCoords[0], waypointCoords[1]);
+              
+              const numberedMarker = L.marker(markerPosition, {
+                icon: createNumberedIcon(stopNumber, route.color),
+                zIndexOffset: 1000 // High z-index to appear on top
+              })
+                .addTo(mapRef.current)
+                .bindPopup(`
+                  <div style="padding: 8px;">
+                    <div style="font-weight: bold; color: ${route.color}; margin-bottom: 4px;">Collection Stop #${stopNumber}</div>
+                    <div style="color: #4b5563; font-size: 14px;">${route.name}</div>
+                    <div style="color: #6b7280; font-size: 12px; margin-top: 4px;">Bin Location</div>
+                    <div style="color: #9ca3af; font-size: 11px; margin-top: 2px;">Lat: ${waypointCoords[0].toFixed(5)}, Lng: ${waypointCoords[1].toFixed(5)}</div>
+                  </div>
+                `);
+              
+              console.log(`      ✅ Marker created at:`, numberedMarker.getLatLng());
+              routeMarkersRef.current.push(numberedMarker);
+            }
+            console.log(`   ✅ Created ${waypoints.length - 2} numbered markers`);
 
             const line = document.querySelector('.leaflet-routing-line');
             if (line) {
@@ -297,19 +584,46 @@ export default function MapComponent({
             }
           });
 
-          // Add error handling
+          // Add error handling with fallback to straight-line route
           routingControl.on('routingerror', function(e) {
-            console.error('Routing error:', e);
+            // Use console.warn instead of error since we have a fallback
+            console.warn('⚠️ OSRM routing failed for', route.name);
+            console.warn('   Error details:', e.error || 'No error details');
+            console.warn('   Falling back to straight-line route');
+            
             // Create a fallback straight-line route
             const points = waypoints.map(wp => [wp.lat, wp.lng]);
             const polyline = L.polyline(points, {
               color: route.color,
-              weight: 4,
-              opacity: 0.8
+              weight: 6,
+              opacity: 0.7,
+              dashArray: '10, 5'
+            }).addTo(mapRef.current);
+            
+            // Add arrows to fallback route
+            const arrowDecorator = L.polylineDecorator(polyline, {
+              patterns: [
+                {
+                  offset: '5%',
+                  repeat: 100,
+                  symbol: L.Symbol.arrowHead({
+                    pixelSize: 12,
+                    polygon: false,
+                    pathOptions: {
+                      stroke: true,
+                      weight: 3,
+                      color: route.color,
+                      opacity: 0.8,
+                      fillOpacity: 0
+                    }
+                  })
+                }
+              ]
             }).addTo(mapRef.current);
             
             const distance = calculateApproximateDistance(points);
             const time = calculateApproximateTime(points);
+            
             
             polyline.bindPopup(`
               <div class="route-popup">
@@ -334,16 +648,83 @@ export default function MapComponent({
                     </svg>
                     <span>${Math.round(time / 60)} minutes (approximate)</span>
                   </div>
+                  <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
+                    ⚠️ Showing approximate straight-line route
+                  </div>
                 </div>
               </div>
             `);
             
-            routesRef.current.push({ remove: () => polyline.remove() });
+            routesRef.current.push({ remove: () => {
+              try {
+                if (polyline && polyline.remove) polyline.remove();
+                if (arrowDecorator && arrowDecorator.remove) arrowDecorator.remove();
+              } catch (error) {
+                console.warn('Error removing fallback route:', error);
+              }
+            } });
           });
 
           // Store the routing control for cleanup
           routesRef.current.push(routingControl);
+        } // close if (route.points.length > 1)
+      }); // close routesToShow.forEach
+    } else { // close if (showRoutes)
+      // When showRoutes = false, restore collection point markers
+      // First, clear any existing markers from map
+      markersRef.current.forEach(marker => {
+        if (marker && marker.remove) {
+          try {
+            marker.remove();
+          } catch (error) {
+            console.warn('Error removing marker:', error);
+          }
         }
+      });
+      markersRef.current = [];
+      
+      // Re-add all markers (bins and trucks)
+      collectionPoints.forEach(point => {
+        let color;
+        if (point.fillLevel >= 80) {
+          color = '#ef4444'; // Red for bins that need collection
+        } else {
+          color = point.type === 'Organik' ? '#22c55e' : '#3b82f6';
+        }
+
+        const marker = L.marker([point.lat, point.lng], {
+          icon: createIcon(color)
+        })
+          .addTo(mapRef.current)
+          .bindPopup(`
+            <div class="text-black">
+              <b>ID: ${point.id}</b><br>
+              Type: ${point.type}<br>
+              Fill Level: ${point.fillLevel}%<br>
+              Status: ${point.fillLevel >= 80 ? 'Needs Collection' : 'OK'}
+            </div>
+          `);
+        markersRef.current.push(marker);
+      });
+
+      // Add source points (truck locations)
+      SOURCE_POINTS.forEach(point => {
+        const marker = L.marker([point.lat, point.lng], { icon: truckIcon })
+          .addTo(mapRef.current)
+          .bindPopup(`
+            <div style="padding: 10px; text-align: center;">
+              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${point.name}</div>
+              <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: #10b981; font-size: 12px;">🚀 START</span>
+                <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
+              </div>
+              <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">Depot & Base Location</div>
+              <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
+              <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">Routes start and end here</div>
+            </div>
+          `);
+        markersRef.current.push(marker);
       });
     }
   }, [showRoutes, collectionPoints, selectedTruckId]);
@@ -385,9 +766,17 @@ export default function MapComponent({
   const fullscreenMapInstanceRef = useRef(null);
 
   // Function to update routes on a specific map instance
-  const updateMapRoutes = (mapInstance, routesContainer) => {
-    // Clear existing routes
-    routesContainer.forEach(route => route.remove());
+  const updateMapRoutes = (mapInstance, routesContainer, markersContainer) => {
+    // Clear existing routes with null check
+    routesContainer.forEach(route => {
+      if (route && route.remove) {
+        try {
+          route.remove();
+        } catch (error) {
+          console.warn('Error removing route in updateMapRoutes:', error);
+        }
+      }
+    });
     routesContainer.length = 0;
 
     if (showRoutes) {
@@ -402,16 +791,50 @@ export default function MapComponent({
         if (route.points.length > 1) {
           const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
           
+          // Get depot location from SOURCE_POINTS
+          const depot = SOURCE_POINTS.find(source => source.id === route.id);
+          
+          // Don't add START/FINISH markers - depot marker (black circle) already shows start/end point
+          // Route naturally starts and ends at depot, so the truck marker serves as both START and FINISH
+
+          // Add numbered markers for collection points ONLY (skip first and last - they are depot)
+          for (let i = 1; i < waypoints.length - 1; i++) {
+            const waypointCoords = route.points[i];
+            const stopNumber = i;
+            
+            const numberedMarker = L.marker(waypoints[i], {
+              icon: createNumberedIcon(stopNumber, route.color),
+              zIndexOffset: 500
+            })
+              .addTo(mapInstance)
+              .bindPopup(`
+                <div style="padding: 8px;">
+                  <div style="font-weight: bold; color: ${route.color}; margin-bottom: 4px;">Collection Stop #${stopNumber}</div>
+                  <div style="color: #4b5563; font-size: 14px;">${route.name}</div>
+                  <div style="color: #6b7280; font-size: 12px; margin-top: 4px;">Bin Location</div>
+                </div>
+              `);
+            markersContainer.push(numberedMarker);
+          }
+          
           const routingControl = L.Routing.control({
             waypoints,
             router: L.Routing.osrmv1({
               serviceUrl: 'https://router.project-osrm.org/route/v1',
-              profile: 'driving'
+              profile: 'car',
+              timeout: 10000,
+              suppressDemoServerWarning: true,
+              routingOptions: {
+                alternatives: false,
+                steps: true,
+                geometries: 'geojson',
+                overview: 'full'
+              }
             }),
             lineOptions: {
               styles: [
-                { color: route.color, weight: 4, opacity: 0.8 },
-                { color: 'white', weight: 2, opacity: 0.3, dashArray: '10,10' }
+                { color: route.color, weight: 6, opacity: 0.7 },
+                { color: 'white', weight: 3, opacity: 0.4, dashArray: '10, 10' }
               ],
               extendToWaypoints: true,
               missingRouteTolerance: 100
@@ -425,6 +848,77 @@ export default function MapComponent({
             createMarker: () => null
           }).addTo(mapInstance);
 
+          // Add arrows when route is found
+          routingControl.on('routesfound', function(e) {
+            const routes = e.routes;
+            const routeCoords = routes[0].coordinates.map(coord => [coord.lat, coord.lng]);
+            
+            const arrowDecorator = L.polylineDecorator(routeCoords, {
+              patterns: [
+                {
+                  offset: '5%',
+                  repeat: 100,
+                  symbol: L.Symbol.arrowHead({
+                    pixelSize: 12,
+                    polygon: false,
+                    pathOptions: {
+                      stroke: true,
+                      weight: 3,
+                      color: route.color,
+                      opacity: 0.8,
+                      fillOpacity: 0
+                    }
+                  })
+                }
+              ]
+            }).addTo(mapInstance);
+            
+            routesContainer.push(arrowDecorator);
+          });
+
+          // Add error handling for fullscreen/other map instances
+          routingControl.on('routingerror', function(e) {
+            console.warn('⚠️ Road routing unavailable for', route.name, '- using direct route');
+            
+            // Create fallback straight-line route
+            const points = waypoints.map(wp => [wp.lat, wp.lng]);
+            const fallbackLine = L.polyline(points, {
+              color: route.color,
+              weight: 6,
+              opacity: 0.7,
+              dashArray: '10, 5'
+            }).addTo(mapInstance);
+            
+            const arrowDecorator = L.polylineDecorator(fallbackLine, {
+              patterns: [
+                {
+                  offset: '5%',
+                  repeat: 100,
+                  symbol: L.Symbol.arrowHead({
+                    pixelSize: 12,
+                    polygon: false,
+                    pathOptions: {
+                      stroke: true,
+                      weight: 3,
+                      color: route.color,
+                      opacity: 0.8,
+                      fillOpacity: 0
+                    }
+                  })
+                }
+              ]
+            }).addTo(mapInstance);
+            
+            routesContainer.push({ remove: () => {
+              try {
+                if (fallbackLine && fallbackLine.remove) fallbackLine.remove();
+                if (arrowDecorator && arrowDecorator.remove) arrowDecorator.remove();
+              } catch (error) {
+                console.warn('Error removing fallback route in updateMapRoutes:', error);
+              }
+            } });
+          });
+
           routesContainer.push(routingControl);
         }
       });
@@ -434,22 +928,38 @@ export default function MapComponent({
   // Effect to handle routes on both maps
   useEffect(() => {
     if (mapRef.current) {
-      updateMapRoutes(mapRef.current, routesRef.current);
+      updateMapRoutes(mapRef.current, routesRef.current, markersRef.current);
     }
     if (fullscreenMapInstanceRef.current) {
-      updateMapRoutes(fullscreenMapInstanceRef.current, fullscreenRoutesRef.current);
+      updateMapRoutes(fullscreenMapInstanceRef.current, fullscreenRoutesRef.current, fullscreenMarkersRef.current);
     }
   }, [showRoutes, collectionPoints, selectedTruckId]);
 
   // Effect to handle map in fullscreen mode
   useEffect(() => {
     if (isFullscreen && mapRef.current && fullscreenMapRef.current) {
-      // Clear previous fullscreen routes
-      fullscreenRoutesRef.current.forEach(route => route.remove());
+      // Clear previous fullscreen routes with null check
+      fullscreenRoutesRef.current.forEach(route => {
+        if (route && route.remove) {
+          try {
+            route.remove();
+          } catch (error) {
+            console.warn('Error removing fullscreen route:', error);
+          }
+        }
+      });
       fullscreenRoutesRef.current = [];
       
-      // Clear previous fullscreen markers
-      fullscreenMarkersRef.current.forEach(marker => marker.remove());
+      // Clear previous fullscreen markers with null check
+      fullscreenMarkersRef.current.forEach(marker => {
+        if (marker && marker.remove) {
+          try {
+            marker.remove();
+          } catch (error) {
+            console.warn('Error removing fullscreen marker:', error);
+          }
+        }
+      });
       fullscreenMarkersRef.current = [];
 
       // Create new map in fullscreen container
@@ -477,11 +987,17 @@ export default function MapComponent({
       });
 
       // Update routes for fullscreen map
-      updateMapRoutes(fullscreenMap, fullscreenRoutesRef.current);
+      updateMapRoutes(fullscreenMap, fullscreenRoutesRef.current, fullscreenMarkersRef.current);
 
       return () => {
         fullscreenMapInstanceRef.current = null;
-        fullscreenMap.remove();
+        if (fullscreenMap && fullscreenMap.remove) {
+          try {
+            fullscreenMap.remove();
+          } catch (error) {
+            console.warn('Error removing fullscreen map:', error);
+          }
+        }
       };
     }
   }, [isFullscreen]);

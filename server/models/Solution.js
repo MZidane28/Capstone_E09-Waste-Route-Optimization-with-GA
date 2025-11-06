@@ -4,8 +4,8 @@ const solutionSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now },
     total_distance: { type: Number, required: true },
     total_time: { type: Number, required: true },
-    utilization: { type: Number },
-    emissions: { type: Number },
+    utilization: { type: Number, default: 0 },
+    emissions: { type: Number, default: 0 },
 
   trucks: [
     {

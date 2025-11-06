@@ -38,6 +38,48 @@ export const generateCollectionPoints = (count = 200) => {
   });
 };
 
+// Calculate distance between two points
+const calculateDistance = (point1, point2) => {
+  return Math.sqrt(
+    Math.pow(point1.lat - point2.lat, 2) + 
+    Math.pow(point1.lng - point2.lng, 2)
+  );
+};
+
+// Nearest Neighbor algorithm to optimize route order
+const optimizeRouteOrder = (depot, points) => {
+  if (points.length === 0) return [];
+  
+  const visited = new Set();
+  const orderedPoints = [];
+  let currentPoint = { lat: depot.lat, lng: depot.lng };
+  
+  // Visit each point using nearest neighbor approach
+  while (visited.size < points.length) {
+    let nearestPoint = null;
+    let minDistance = Infinity;
+    
+    // Find the nearest unvisited point
+    points.forEach((point, index) => {
+      if (!visited.has(index)) {
+        const distance = calculateDistance(currentPoint, point);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestPoint = { point, index };
+        }
+      }
+    });
+    
+    if (nearestPoint) {
+      visited.add(nearestPoint.index);
+      orderedPoints.push(nearestPoint.point);
+      currentPoint = nearestPoint.point;
+    }
+  }
+  
+  return orderedPoints;
+};
+
 // Generate smart routes for visualization
 export const generateMockRoutes = (sourcePoints, collectionPoints) => {
   const routes = [];
@@ -46,46 +88,64 @@ export const generateMockRoutes = (sourcePoints, collectionPoints) => {
   const pointsNeedingCollection = collectionPoints.filter(point => point.fillLevel >= 80);
   
   if (pointsNeedingCollection.length === 0) {
-    // If no points need collection, return empty routes
+    // If no points need collection, return routes starting and ending at depot
     return sourcePoints.map(source => ({
       id: source.id,
       name: source.name,
       color: getRouteColor(sourcePoints.indexOf(source)),
-      points: [[source.lat, source.lng]],
+      points: [
+        [source.lat, source.lng], // Start at depot
+        [source.lat, source.lng]  // End at depot (no bins to collect)
+      ],
       binCount: 0
     }));
   }
 
-  // Distribute points to nearest trucks
+  // Assign each bin to the nearest truck
+  const truckAssignments = sourcePoints.map(() => []);
+  
+  pointsNeedingCollection.forEach(point => {
+    let nearestTruckIndex = 0;
+    let minDistance = Infinity;
+    
+    sourcePoints.forEach((source, index) => {
+      const distance = calculateDistance(source, point);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestTruckIndex = index;
+      }
+    });
+    
+    truckAssignments[nearestTruckIndex].push(point);
+  });
+
+  // Create optimized routes for each truck
   sourcePoints.forEach((source, index) => {
-    // Calculate distances from this source to all points
-    const pointsWithDistance = pointsNeedingCollection.map(point => ({
-      ...point,
-      distance: Math.sqrt(
-        Math.pow(source.lat - point.lat, 2) + 
-        Math.pow(source.lng - point.lng, 2)
-      )
-    }));
-
-    // Sort points by distance
-    pointsWithDistance.sort((a, b) => a.distance - b.distance);
-
-    // Take the closest third of points for this truck
-    const truckPoints = pointsWithDistance.filter((_, idx) => 
-      idx % sourcePoints.length === index
-    );
-
-    // Create route with only points that need collection
+    const assignedPoints = truckAssignments[index];
+    
+    // Optimize the route order using nearest neighbor
+    const optimizedPoints = optimizeRouteOrder(source, assignedPoints);
+    
+    // Create route: START at depot → visit bins in optimized order → RETURN to depot
+    const routePoints = [
+      [source.lat, source.lng],                                    // START: Depot
+      ...optimizedPoints.map(point => [point.lat, point.lng]),    // VISIT: Bins (optimized order)
+      [source.lat, source.lng]                                     // END: Return to Depot
+    ];
+    
+    // Log route creation
+    console.log(`🚛 ${source.name} Route Created:`);
+    console.log(`   📍 Start: Depot (${source.lat.toFixed(4)}, ${source.lng.toFixed(4)})`);
+    console.log(`   🗑️  Bins to collect: ${optimizedPoints.length}`);
+    console.log(`   🏁 End: Return to Depot (${source.lat.toFixed(4)}, ${source.lng.toFixed(4)})`);
+    console.log(`   📊 Total waypoints: ${routePoints.length} (including depot start & return)`);
+    
     routes.push({
       id: source.id,
       name: source.name,
       color: getRouteColor(index),
-      points: [
-        [source.lat, source.lng],
-        ...truckPoints.map(point => [point.lat, point.lng]),
-        [source.lat, source.lng] // Return to source
-      ],
-      binCount: truckPoints.length
+      points: routePoints,
+      binCount: optimizedPoints.length
     });
   });
   
