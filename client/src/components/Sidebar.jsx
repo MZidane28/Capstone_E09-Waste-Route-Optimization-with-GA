@@ -38,12 +38,12 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="pt-2 pb-4 lg:pt-4 lg:pb-6">
         <Link href="/" className="flex items-center justify-center">
-          <div className="relative w-12 lg:w-32 h-10 lg:h-14">
+          <div className="relative w-14 lg:w-36 h-12 lg:h-16 p-2 lg:p-3 border-2 border-[#34A853] rounded-xl bg-gradient-to-br from-green-50 to-white shadow-[0_0_15px_rgba(52,168,83,0.3)] hover:shadow-[0_0_20px_rgba(52,168,83,0.5)] transition-all">
             <Image
               src="/logoooo.svg"
               alt="Rutin-GA Logo"
               fill
-              sizes="(max-width: 1024px) 48px, 128px"
+              sizes="(max-width: 1024px) 56px, 144px"
               className="object-contain"
               priority
             />

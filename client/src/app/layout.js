@@ -30,12 +30,12 @@ export default function RootLayout({ children }) {
             {/* Logo untuk Mobile/Tablet - Hidden di Desktop */}
             <header className="sm:hidden bg-white shadow-md rounded-bl-2xl rounded-br-2xl border-3 border-black py-3">
               <Link href="/" className="flex justify-center">
-                <div className="relative w-28 h-10">
+                <div className="relative w-32 h-12 p-3 border-2 border-[#34A853] rounded-xl bg-gradient-to-br from-green-50 to-white shadow-[0_0_15px_rgba(52,168,83,0.3)]">
                   <Image
                     src="/logoooo.svg"
                     alt="Rutin-GA"
                     fill
-                    sizes="112px"
+                    sizes="128px"
                     className="object-contain"
                     priority
                   />
