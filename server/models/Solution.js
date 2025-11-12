@@ -16,8 +16,6 @@ const solutionSchema = new mongoose.Schema({
   total_distance : { type: Number, required: true, min : 0 },
   total_emissions : { type: Number, required: true, min : 0 },
   avg_utilization : { type: Number, required: true},
-  avg_unused_capacity : { type: Number, required: true},
-  bins_collected : { type: Number, required: true},
   number_of_trucks : { type: Number, required: true},
   execution_time : { type: Number, required: true},
   routes : [routeSchema]

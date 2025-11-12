@@ -1,4 +1,3 @@
-import { get } from "mongoose";
 import Bin from "../models/Bin.js";
 import Solution from "../models/Solution.js";
 import { optimizeWithGA, optimizeWithNN } from "./optimizationService.js";
@@ -88,14 +87,14 @@ export async function runGAoptimization(day) {
                 method : 'ga',
                 total_distance : 0,
                 total_emissions : 0,
-                bins_collected : 0,
+                avg_utilization : 0,
                 number_of_trucks : 0,
                 execution_time : 0,
                 routes : []
             });
 
             await emptySolution.save();
-            console.log(`⚠️  GA: No bins to collect on day ${currentSimulationDay}. Saved empty solution.`);
+            console.log(`⚠️  GA: No bins to collect on day ${day}. Saved empty solution.`);
             return { solution : emptySolution};
         }
 
@@ -105,9 +104,9 @@ export async function runGAoptimization(day) {
             method : 'ga',
             total_distance : gaResult.total_distance,
             total_emissions : gaResult.total_emissions,
-            bins_collected : gaResult.bins_collected,
+            avg_utilization : gaResult.avg_utilization,
             number_of_trucks : gaResult.number_of_trucks,
-            execution_time : gaResult.execution_time,
+            execution_time : gaResult.computation_time,
             routes : gaResult.routes
         });
 
@@ -135,14 +134,14 @@ export async function runNNoptimization(day) {
                 method : 'nn',
                 total_distance : 0,
                 total_emissions : 0,
-                bins_collected : 0,
+                avg_utilization : 0,
                 number_of_trucks : 0,
                 execution_time : 0,
                 routes : []
             });
 
             await emptySolution.save();
-            console.log(`⚠️  NN : No bins to collect on day ${currentSimulationDay}. Saved empty solution.`);
+            console.log(`⚠️  NN : No bins to collect on day ${day}. Saved empty solution.`);
             return { solution : emptySolution};
         }
 
@@ -152,7 +151,7 @@ export async function runNNoptimization(day) {
             method : 'nn',
             total_distance : nnResult.total_distance,
             total_emissions : nnResult.total_emissions,
-            bins_collected : nnResult.bins_collected,
+            avg_utilization : nnResult.avg_utilization,
             number_of_trucks : nnResult.number_of_trucks,
             execution_time : nnResult.execution_time,
             routes : nnResult.routes

@@ -84,13 +84,11 @@ export const compareSolutions = async (req, res) => {
       const totalDistance = solutions.reduce((sum, sol) => sum + sol.total_distance, 0);
       const totalEmissions = solutions.reduce((sum, sol) => sum + sol.total_emissions, 0);
       const totalTrucks = solutions.reduce((sum, sol) => sum + sol.number_of_trucks, 0);
-      const totalBinsCollected = solutions.reduce((sum, sol) => sum + sol.bins_collected, 0);
 
       return {
         total_distance: totalDistance,
         total_emissions: totalEmissions,
         total_trucks: totalTrucks,
-        total_bins_collected: totalBinsCollected,
         days_count: solutions.length,
       };
     };
@@ -121,7 +119,6 @@ export const compareSolutions = async (req, res) => {
             simulation_day: sol.simulation_day,
             total_distance: sol.total_distance,
             total_emissions: sol.total_emissions,
-            bins_collected: sol.bins_collected.length,
             number_of_trucks: sol.number_of_trucks,
           }))
         },
@@ -131,7 +128,6 @@ export const compareSolutions = async (req, res) => {
             day: sol.simulation_day,
             distance: sol.total_distance,
             emissions: sol.total_emissions,
-            bins: sol.bins_collected.length,
             trips: sol.number_of_trucks,
         }))
         },
@@ -162,9 +158,6 @@ export const getSummary = async (req, res) => {
 
     const gaTotalEmissions = gaSolutions.reduce((sum, sol) => sum + sol.total_distance, 0);
     const nnTotalEmissions = nnSolutions.reduce((sum, sol) => sum + sol.total_distance, 0);
-
-    const gaTotalBins = gaSolutions.reduce((sum, sol) => sum + sol.bins_collected, 0);
-    const nnTotalBins= nnSolutions.reduce((sum, sol) => sum + sol.bins_collected, 0);
 
     res.json({
       success: true,

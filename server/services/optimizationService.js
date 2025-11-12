@@ -1,6 +1,8 @@
 import axios from "axios";
 import { getSubMatrix } from "../utils/distance-helper.js";
 
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'https://caps09-cvrp.azurewebsites.net';
+
 export async function optimizeWithGA(bins) {
     try {
         if (!bins || bins.length === 0){
@@ -8,7 +10,7 @@ export async function optimizeWithGA(bins) {
                 routes: [],
                 total_distance: 0,
                 total_emissions: 0,
-                bins_collected: 0,
+                avg_utilization: 0,
                 number_of_trips: 0,
                 execution_time: 0
             }
@@ -29,9 +31,8 @@ export async function optimizeWithGA(bins) {
             distance_matrix : distanceMatrix
         };
 
-        /* // Call Python service
         const response = await axios.post(
-            `${PYTHON_SERVICE_URL}/optimize/ga`,
+            `${PYTHON_SERVICE_URL}/solve-ga`,
             payload,
             {
                 timeout: 60000, // 60 second timeout
@@ -39,9 +40,9 @@ export async function optimizeWithGA(bins) {
                 'Content-Type': 'application/json'
                 }
             }
-        ); */
+        );
 
-        return payload;
+        return response.data;
     } catch (error) {
         throw new Error(`GA optimization failed: ${error.message}`);
     }
@@ -54,7 +55,7 @@ export async function optimizeWithNN(bins) {
                 routes: [],
                 total_distance: 0,
                 total_emissions: 0,
-                bins_collected: 0,
+                avg_utilization: 0,
                 number_of_trips: 0,
                 execution_time: 0
             }
@@ -75,9 +76,8 @@ export async function optimizeWithNN(bins) {
             distance_matrix : distanceMatrix
         };
 
-        /* // Call Python service
         const response = await axios.post(
-            `${PYTHON_SERVICE_URL}/optimize/nn`,
+            `${PYTHON_SERVICE_URL}/solve-nn`,
             payload,
             {
                 timeout: 60000, // 60 second timeout
@@ -85,9 +85,9 @@ export async function optimizeWithNN(bins) {
                 'Content-Type': 'application/json'
                 }
             }
-        ); */
+        );
 
-        return payload;
+        return response.data;
     } catch (error) {
         throw new Error(`NN optimization failed: ${error.message}`);
     }
