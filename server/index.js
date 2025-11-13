@@ -44,7 +44,7 @@ client.on("connect", () => {
   console.log("✅ Connected to MQTT broker");
   client.subscribe(topicPot, (err) => {
     if (!err) {
-      console.log(📡 Subscribed to topic: ${topicPot});
+      console.log(`📡 Subscribed to topic: ${topicPot}`);
     } else {
       console.error("Subscribe error:", err);
     }
