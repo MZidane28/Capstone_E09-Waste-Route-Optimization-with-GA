@@ -1,0 +1,34 @@
+{
+  "testConfig": {
+    "numBins": 100,
+    "numTrucks": 3,
+    "gaGenerations": 100,
+    "gaPopulationSize": 100,
+    "timestamp": "2025-11-10T15:53:25.179Z",
+    "runs": 3
+  },
+  "traditional": {
+    "totalDistance": 141.11,
+    "totalTime": 782.22,
+    "fuelCost": 137583,
+    "co2Emission": 48.89
+  },
+  "gaOptimized": {
+    "totalDistance": 154.71,
+    "totalTime": 809.42,
+    "fuelCost": 150842,
+    "co2Emission": 53.6
+  },
+  "improvements": {
+    "distance": "-9.6",
+    "time": "-3.5",
+    "fuelCost": "-9.6",
+    "co2": "-9.6"
+  },
+  "summary": {
+    "distanceSaved": "-13.60",
+    "timeSaved": "-27.20",
+    "costSaved": -13259,
+    "co2Reduced": "-4.71"
+  }
+}

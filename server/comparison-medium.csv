@@ -1,0 +1,11 @@
+Metric,Traditional Route,GA Optimized,Improvement (%)
+Total Distance (km),159.55,176.89,-10.9
+Total Time (min),819.1,853.79,-4.2
+Fuel Cost (Rp),155559,172472,-10.9
+CO₂ Emission (kg),55.28,61.29,-10.9
+
+Summary
+Distance Saved (km),-17.34
+Time Saved (min),-34.69
+Cost Saved (Rp),-16913
+CO₂ Reduced (kg),-6.01

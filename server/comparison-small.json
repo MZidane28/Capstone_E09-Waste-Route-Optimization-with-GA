@@ -1,0 +1,61 @@
+{
+  "testConfig": {
+    "numBins": 30,
+    "numTrucks": 2,
+    "gaGenerations": 50,
+    "gaPopulationSize": 100,
+    "timestamp": "2025-11-10T15:51:11.828Z"
+  },
+  "traditional": {
+    "totalDistance": 67.94,
+    "totalTime": 285.88,
+    "fuelCost": 66244,
+    "co2Emission": 23.54,
+    "routes": [
+      {
+        "truckId": 1,
+        "bins": 15,
+        "totalDistance": 36.91543425771786,
+        "totalTime": 148.83086851543572
+      },
+      {
+        "truckId": 2,
+        "bins": 15,
+        "totalDistance": 31.026984596977496,
+        "totalTime": 137.053969193955
+      }
+    ]
+  },
+  "gaOptimized": {
+    "totalDistance": 59.39,
+    "totalTime": 268.78,
+    "fuelCost": 57905,
+    "co2Emission": 20.58,
+    "routes": [
+      {
+        "truckId": 1,
+        "bins": 15,
+        "totalDistance": 30.13769578351289,
+        "totalTime": 135.2753915670258
+      },
+      {
+        "truckId": 2,
+        "bins": 15,
+        "totalDistance": 29.25250605578219,
+        "totalTime": 133.50501211156438
+      }
+    ]
+  },
+  "improvements": {
+    "distance": "12.6",
+    "time": "6.0",
+    "fuelCost": "12.6",
+    "co2": "12.6"
+  },
+  "summary": {
+    "distanceSaved": "8.55",
+    "timeSaved": "17.10",
+    "costSaved": 8339,
+    "co2Reduced": "2.96"
+  }
+}

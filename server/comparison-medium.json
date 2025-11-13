@@ -1,0 +1,73 @@
+{
+  "testConfig": {
+    "numBins": 100,
+    "numTrucks": 3,
+    "gaGenerations": 50,
+    "gaPopulationSize": 100,
+    "timestamp": "2025-11-10T15:53:01.004Z"
+  },
+  "traditional": {
+    "totalDistance": 159.55,
+    "totalTime": 819.1,
+    "fuelCost": 155559,
+    "co2Emission": 55.28,
+    "routes": [
+      {
+        "truckId": 1,
+        "bins": 34,
+        "totalDistance": 56.002500642717784,
+        "totalTime": 282.0050012854356
+      },
+      {
+        "truckId": 2,
+        "bins": 34,
+        "totalDistance": 50.34227366248737,
+        "totalTime": 270.68454732497474
+      },
+      {
+        "truckId": 3,
+        "bins": 32,
+        "totalDistance": 53.20286327829965,
+        "totalTime": 266.4057265565993
+      }
+    ]
+  },
+  "gaOptimized": {
+    "totalDistance": 176.89,
+    "totalTime": 853.79,
+    "fuelCost": 172472,
+    "co2Emission": 61.29,
+    "routes": [
+      {
+        "truckId": 1,
+        "bins": 34,
+        "totalDistance": 59.240625552782916,
+        "totalTime": 288.48125110556583
+      },
+      {
+        "truckId": 2,
+        "bins": 34,
+        "totalDistance": 63.427172521005055,
+        "totalTime": 296.8543450420101
+      },
+      {
+        "truckId": 3,
+        "bins": 32,
+        "totalDistance": 54.22621930270809,
+        "totalTime": 268.4524386054162
+      }
+    ]
+  },
+  "improvements": {
+    "distance": "-10.9",
+    "time": "-4.2",
+    "fuelCost": "-10.9",
+    "co2": "-10.9"
+  },
+  "summary": {
+    "distanceSaved": "-17.34",
+    "timeSaved": "-34.69",
+    "costSaved": -16913,
+    "co2Reduced": "-6.01"
+  }
+}
