@@ -167,13 +167,11 @@ export const getSummary = async (req, res) => {
         ga: {
           total_distance: parseFloat(gaTotalDistance.toFixed(2)),
           total_emissions: parseFloat(gaTotalEmissions.toFixed(2)),
-          total_bins_collected: gaTotalBins,
           days_simulated: gaSolutions.length
         },
         nn: {
           total_distance: parseFloat(nnTotalDistance.toFixed(2)),
           total_emissions: parseFloat(nnTotalEmissions.toFixed(2)),
-          total_bins_collected: nnTotalBins,
           days_simulated: nnSolutions.length
         }
       }

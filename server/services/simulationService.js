@@ -95,7 +95,7 @@ export async function runGAoptimization(day) {
 
             await emptySolution.save();
             console.log(`⚠️  GA: No bins to collect on day ${day}. Saved empty solution.`);
-            return { solution : emptySolution};
+            return { solution: emptySolution };
         }
 
         const gaResult = await optimizeWithGA(binsToCollect);
@@ -111,13 +111,31 @@ export async function runGAoptimization(day) {
         });
 
         await newSolution.save();
+        console.log('GA solution is saved to database.');
+
+        console.log('Return FULL data with locations for frontend visualization');
+        const binDetails = {};
+        binsToCollect.forEach(bin => {
+            binDetails[bin.bin_id] = {
+                name: bin.name,
+                lat: bin.location.lat,
+                lng: bin.location.lon,
+                current_fill_ga: bin.current_fill_ga,
+                capacity: bin.capacity
+            };
+        });
 
         for(const bin of binsToCollect){
             bin.emptyBin('ga');
             await bin.save();
         }
 
-        return { solution : newSolution };
+        console.log('\n GA current fill is empty.');
+
+        return { 
+            solution: newSolution,
+            binDetails: binDetails
+        };
 
     } catch (error) {
         throw new Error(`GA optimization failed: ${error.message}`);
@@ -142,7 +160,7 @@ export async function runNNoptimization(day) {
 
             await emptySolution.save();
             console.log(`⚠️  NN : No bins to collect on day ${day}. Saved empty solution.`);
-            return { solution : emptySolution};
+            return { success: true };
         }
 
         const nnResult = await optimizeWithNN(binsToCollect);
@@ -153,18 +171,20 @@ export async function runNNoptimization(day) {
             total_emissions : nnResult.total_emissions,
             avg_utilization : nnResult.avg_utilization,
             number_of_trucks : nnResult.number_of_trucks,
-            execution_time : nnResult.execution_time,
+            execution_time : nnResult.computation_time,
             routes : nnResult.routes
         });
 
         await newSolution.save();
+        console.log('NN solution is saved to database.');
 
         for(const bin of binsToCollect){
             bin.emptyBin('nn');
             await bin.save();
         }
+        console.log('\n NN current fill is empty.');
 
-        return { solution : newSolution };
+        return { success: true };
 
     } catch (error) {
         throw new Error(`NN optimization failed: ${error.message}`);
@@ -183,16 +203,15 @@ export async function runDailySimulation() {
         const gaResult = await runGAoptimization(day);
 
         // Run NN simulation
-        const nnResult = await runNNoptimization(day);
+        await runNNoptimization(day);
 
         return {
-            day : day,
-            ga : gaResult,
-            nn : nnResult
+            gaResult
         };
 
     } catch (error) {
-        throw new Error(`Daily simulation failed: ${error.message}`);
+        throw new Error(`Daily simulation failed: ${error.message}`)
+        ;
     }
 }
 
