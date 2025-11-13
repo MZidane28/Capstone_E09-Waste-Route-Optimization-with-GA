@@ -11,11 +11,11 @@ export default function RandomButton({ onClick, disabled = false }) {
         <span className="block text-[18px] text-black font-bold">
           Random
         </span>
-        <span className="block text-[7px] font-semibold text-black leading-tight">
+        <span className="block text-[8px] font-semibold text-black leading-tight">
           <i>Tekan untuk mengacak</i>
         </span>
-        <span className="block text-[7px] font-semibold text-black leading-tight">
-          <i>keterisian tong sampah</i>
+        <span className="block text-[8px] font-semibold text-black leading-tight">
+          <i>titik pengambilan</i>
         </span>
       </div>
     </button>

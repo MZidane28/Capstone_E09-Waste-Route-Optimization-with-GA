@@ -8,8 +8,8 @@ import binRouter from "./routes/binRoutes.js";
 import solutionRouter from "./routes/solutionRoutes.js";
 import optimizeRouter from "./routes/optimizeRoutes.js";
 import trackingRouter from "./routes/trackingRoutes.js";
+import simulationRouter from "./routes/simulationRoutes.js";
 
-import mqtt from "mqtt";
 dotenv.config();
 
 connectDB();
@@ -23,6 +23,7 @@ app.use(cookieParser());
 
 app.use('/api/v1/bins',binRouter);
 app.use('/api/v1/solutions',solutionRouter);
+app.use('/api/v1/simulation', simulationRouter);
 app.use('/api/v1/optimize', optimizeRouter);
 app.use('/api/tracking', trackingRouter);
 

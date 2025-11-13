@@ -6,8 +6,6 @@ import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
 import RandomButton from "@/components/RandomButton";
-import NavigationChunks from "@/components/NavigationChunks";
-import { mockRouteData } from "@/lib/mockRoutes";
 
 export default function Simulasi() {
   const router = useRouter();
@@ -246,12 +244,11 @@ export default function Simulasi() {
     }, 500); // 500ms delay for visual feedback
   };
 
-  const handleTruckSelect = (truckId) => {
-    setSelectedTruckId(truckId);
-  };
-
-  const handleRoutesGenerated = (routes) => {
-    setGeneratedRoutes(routes);
+  const routeDetails = {
+    tujuan: showRoutes ? "Aktif" : "Menunggu",
+    jarak: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 0.5).toFixed(1)} Km` : "0 Km",
+    estimasi: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 2).toFixed(0)} menit` : "0 menit",
+    tongSampah: `${mapData.needsCollection}/${mapData.total} (${((mapData.needsCollection/mapData.total) * 100).toFixed(1)}%)`
   };
 
   const handleClearRoutes = async () => {
