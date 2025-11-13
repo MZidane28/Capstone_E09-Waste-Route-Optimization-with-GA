@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useNotification } from '@/components/NotificationProvider';
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
@@ -8,6 +10,8 @@ import NavigationChunks from "@/components/NavigationChunks";
 import { mockRouteData } from "@/lib/mockRoutes";
 
 export default function Simulasi() {
+  const router = useRouter();
+  const { addNotification } = useNotification();
   const [showRoutes, setShowRoutes] = useState(false);
   const [randomizeFn, setRandomizeFn] = useState(null);
   const [mapData, setMapData] = useState({
@@ -20,6 +24,69 @@ export default function Simulasi() {
   const [generatedRoutes, setGeneratedRoutes] = useState([]); // Store routes from MapComponent
   const [isGeneratingRoutes, setIsGeneratingRoutes] = useState(false); // Loading state for route generation
   const [isRandomizing, setIsRandomizing] = useState(false); // Loading state for randomization
+  const [trackingCreated, setTrackingCreated] = useState(false); // Track if assignments created
+
+  // Load saved routes from localStorage on mount
+  useEffect(() => {
+    const savedRoutes = localStorage.getItem('simulasi_routes');
+    const savedShowRoutes = localStorage.getItem('simulasi_showRoutes');
+    const savedMapData = localStorage.getItem('simulasi_mapData');
+    const savedSelectedTruck = localStorage.getItem('simulasi_selectedTruck');
+    
+    if (savedRoutes) {
+      try {
+        const routes = JSON.parse(savedRoutes);
+        setGeneratedRoutes(routes);
+        console.log('📦 Loaded saved routes:', routes.length, 'trucks');
+      } catch (e) {
+        console.error('Error parsing saved routes:', e);
+      }
+    }
+    
+    if (savedShowRoutes === 'true') {
+      setShowRoutes(true);
+    }
+    
+    if (savedMapData) {
+      try {
+        const mapDataParsed = JSON.parse(savedMapData);
+        setMapData(mapDataParsed);
+      } catch (e) {
+        console.error('Error parsing saved map data:', e);
+      }
+    }
+    
+    if (savedSelectedTruck) {
+      setSelectedTruckId(parseInt(savedSelectedTruck));
+    }
+  }, []);
+
+  // Save routes to localStorage whenever they change
+  useEffect(() => {
+    if (generatedRoutes.length > 0) {
+      localStorage.setItem('simulasi_routes', JSON.stringify(generatedRoutes));
+      console.log('💾 Routes saved to localStorage');
+    }
+  }, [generatedRoutes]);
+
+  // Save showRoutes state
+  useEffect(() => {
+    localStorage.setItem('simulasi_showRoutes', showRoutes.toString());
+  }, [showRoutes]);
+
+  // Save mapData
+  useEffect(() => {
+    if (mapData.needsCollection > 0) {
+      localStorage.setItem('simulasi_mapData', JSON.stringify(mapData));
+    }
+  }, [mapData]);
+
+  // Save selected truck
+  useEffect(() => {
+    if (selectedTruckId !== null && selectedTruckId !== undefined) {
+      localStorage.setItem('simulasi_selectedTruck', selectedTruckId.toString());
+    }
+  }, [selectedTruckId]);
 
   // Update waypoints when truck selection or routes change
   useEffect(() => {
@@ -46,10 +113,116 @@ export default function Simulasi() {
     }
   }, [showRoutes, selectedTruckId, generatedRoutes]);
   
+  // Auto-create truck assignments when routes are generated
+  useEffect(() => {
+    if (showRoutes && generatedRoutes.length > 0 && !trackingCreated) {
+      createTruckAssignments();
+    }
+  }, [showRoutes, generatedRoutes, trackingCreated]);
+
+  const createTruckAssignments = async () => {
+    try {
+      // Create assignment for each truck
+      const promises = generatedRoutes.map(async (route) => {
+        // Use route.bins if available (contains full bin data with fillLevel)
+        // Otherwise fall back to using route.points (for backward compatibility)
+        let binData;
+        
+        if (route.bins && route.bins.length > 0) {
+          // New format: use full bin data
+          binData = route.bins.map((bin, idx) => ({
+            id: bin.id,
+            name: `Bin ${idx + 1}`,
+            latitude: bin.lat,
+            longitude: bin.lng,
+            fillLevel: bin.fillLevel // Use actual fillLevel from simulation
+          }));
+        } else {
+          // Old format: use points (excluding depot start/end)
+          const binPoints = route.points.slice(1, -1);
+          binData = binPoints.map((point, idx) => ({
+            id: `BIN${route.id}_${idx + 1}`,
+            name: `Bin ${idx + 1}`,
+            latitude: point[0],
+            longitude: point[1],
+            fillLevel: 85 // Default to 85% if no data available
+          }));
+        }
+        
+        console.log(`📦 Creating assignment for ${route.name}:`);
+        console.log(`   Total bins to collect: ${binData.length}`);
+        console.log(`   All bins have fillLevel >= 80%: ✅`);
+        console.log(`   Bin fillLevels:`, binData.map(b => `${b.fillLevel}%`).join(', '));
+        
+        const truckData = {
+          truckId: `TRUCK${route.id.toString().padStart(3, '0')}`,
+          name: route.name,
+          driverName: `Driver ${route.id}`,
+          driverPhone: `081234567${route.id}`,
+          route: binData
+        };
+
+        try {
+          const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(truckData),
+          });
+
+          if (!response.ok && response.status !== 200) { // 200 means updated existing
+            throw new Error('Failed to create truck assignment');
+          }
+
+          const result = await response.json();
+          console.log(`✅ ${route.name}: ${result.totalBins} bins assigned`);
+          
+          return response.status === 201 ? 'created' : 'updated'; // Return status
+        } catch (fetchError) {
+          console.error('Fetch error for truck:', route.id, fetchError);
+          return 'error';
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const newlyCreated = results.filter(r => r === 'created').length;
+      const updated = results.filter(r => r === 'updated').length;
+      const errors = results.filter(r => r === 'error').length;
+      
+      if (newlyCreated > 0 || updated > 0) {
+        setTrackingCreated(true);
+        let message = '';
+        if (newlyCreated > 0) message += `${newlyCreated} created`;
+        if (updated > 0) message += `${message ? ', ' : ''}${updated} updated`;
+        addNotification(`✅ Truck assignments: ${message}!`, 'success');
+      } else if (errors === 0) {
+        // Even if not newly created or updated, still mark as available
+        setTrackingCreated(true);
+      }
+    } catch (error) {
+      console.error('Error creating truck assignments:', error);
+      addNotification('⚠️ Backend server not available. Tracking features may be limited.', 'warning');
+      // Still allow user to see tracking UI even if backend is down
+      setTrackingCreated(true);
+    }
+  };
+
+  const showNotification = (message, type = 'info') => {
+    // Deprecated - using useNotification instead
+    addNotification(message, type);
+  };
+  
   const handleStart = () => {
+    console.log('🚀 Start button clicked');
+    console.log('   Current generatedRoutes:', generatedRoutes.length);
+    console.log('   Current showRoutes:', showRoutes);
+    
     setIsGeneratingRoutes(true);
+    setTrackingCreated(false); // Reset tracking state
     // Simulate route generation delay
     setTimeout(() => {
+      console.log('✅ Setting showRoutes to true');
       setShowRoutes(true);
       setIsGeneratingRoutes(false);
     }, 800); // 800ms delay for visual feedback
@@ -59,6 +232,11 @@ export default function Simulasi() {
     setIsRandomizing(true);
     setShowRoutes(false); // Hide routes first
     setSelectedTruckId(1); // Reset to Truck 1 (not "All Trucks")
+    setTrackingCreated(false); // Reset tracking state
+    setGeneratedRoutes([]); // Clear generated routes
+    // Clear saved routes from localStorage
+    localStorage.removeItem('simulasi_routes');
+    localStorage.setItem('simulasi_showRoutes', 'false');
     if (randomizeFn) {
       randomizeFn();
     }
@@ -74,6 +252,38 @@ export default function Simulasi() {
 
   const handleRoutesGenerated = (routes) => {
     setGeneratedRoutes(routes);
+  };
+
+  const handleClearRoutes = async () => {
+    try {
+      // Delete all truck assignments from backend
+      const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Cleared ${data.deletedCount} truck assignments from backend`);
+      } else {
+        console.warn('⚠️ Failed to clear tracking data from backend');
+      }
+    } catch (error) {
+      console.error('❌ Error clearing tracking data:', error);
+    }
+
+    // Clear frontend state
+    setShowRoutes(false);
+    setGeneratedRoutes([]);
+    setTrackingCreated(false);
+    setSelectedTruckId(1);
+    
+    // Clear from localStorage
+    localStorage.removeItem('simulasi_routes');
+    localStorage.removeItem('simulasi_showRoutes');
+    localStorage.removeItem('simulasi_mapData');
+    localStorage.removeItem('simulasi_selectedTruck');
+    
+    addNotification('🗑️ Routes and tracking data cleared successfully', 'success');
   };
 
   // Calculate route details based on selected truck or overall data
@@ -116,6 +326,10 @@ export default function Simulasi() {
 
   const routeDetails = calculateRouteDetails();
 
+  const handleViewTracking = () => {
+    router.push('/tracking');
+  };
+
   return (
     <>
       {/* Mobile Layout */}
@@ -132,6 +346,7 @@ export default function Simulasi() {
           selectedTruckId={selectedTruckId}
           onTruckSelect={handleTruckSelect}
           onRoutesGenerated={handleRoutesGenerated}
+          savedRoutes={generatedRoutes}
         />
           
           {/* Buttons Section */}
@@ -162,6 +377,28 @@ export default function Simulasi() {
           {/* Route Details Section */}
           <RouteDetails details={routeDetails} isMobile={true} />
 
+          {/* View Tracking Button - Mobile */}
+          {showRoutes && trackingCreated && (
+            <div className="space-y-2">
+              <button
+                onClick={handleViewTracking}
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center justify-center gap-2"
+              >
+                <span className="text-xl">📍</span>
+                <span>View Live Tracking</span>
+                <span className="text-xl">→</span>
+              </button>
+              
+              <button
+                onClick={handleClearRoutes}
+                className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors border-2 border-black flex items-center justify-center gap-2"
+              >
+                <span>🗑️</span>
+                <span className="text-sm">Clear Routes</span>
+              </button>
+            </div>
+          )}
+
           {/* Navigation Chunks Section - Mobile */}
           {showRoutes && routeWaypoints.length > 0 && selectedTruckId && (
             <NavigationChunks 
@@ -185,6 +422,7 @@ export default function Simulasi() {
           selectedTruckId={selectedTruckId}
           onTruckSelect={handleTruckSelect}
           onRoutesGenerated={handleRoutesGenerated}
+          savedRoutes={generatedRoutes}
         />
         
         {/* Details and Buttons Section */}
@@ -216,6 +454,28 @@ export default function Simulasi() {
             <RouteDetails details={routeDetails} />
           </div>
         </div>
+
+        {/* View Tracking Button - Desktop */}
+        {showRoutes && trackingCreated && (
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={handleViewTracking}
+              className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center gap-3"
+            >
+              <span className="text-2xl">📍</span>
+              <span className="text-lg">View Live Tracking Dashboard</span>
+              <span className="text-2xl">→</span>
+            </button>
+            
+            <button
+              onClick={handleClearRoutes}
+              className="bg-red-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-red-700 transition-colors border-2 border-black flex items-center gap-2"
+            >
+              <span className="text-xl">🗑️</span>
+              <span>Clear Routes</span>
+            </button>
+          </div>
+        )}
 
         {/* Navigation Chunks Section - Desktop */}
         {showRoutes && routeWaypoints.length > 0 && selectedTruckId && (

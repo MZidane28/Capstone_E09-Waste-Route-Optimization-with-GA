@@ -145,7 +145,8 @@ export const generateMockRoutes = (sourcePoints, collectionPoints) => {
       name: source.name,
       color: getRouteColor(index),
       points: routePoints,
-      binCount: optimizedPoints.length
+      binCount: optimizedPoints.length,
+      bins: optimizedPoints // Store full bin data including id and fillLevel
     });
   });
   

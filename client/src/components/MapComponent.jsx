@@ -222,7 +222,8 @@ export default function MapComponent({
   onTruckSelect,
   collectionPoints: externalCollectionPoints = null,
   useRealData = false,
-  onRoutesGenerated
+  onRoutesGenerated,
+  savedRoutes = null
 }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -231,27 +232,46 @@ export default function MapComponent({
   const routesRef = useRef([]);
   const [collectionPoints, setCollectionPoints] = useState([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const previousDataRef = useRef(null); // Track previous data sent to parent
+  const hasInitialized = useRef(false); // Track if initial data is loaded
 
   // Initialize collection points
   useEffect(() => {
+    // If useRealData is true, use external collection points from parent (Beranda)
     if (useRealData && externalCollectionPoints) {
-      // Use data from backend
       setCollectionPoints(externalCollectionPoints);
-    } else if (!useRealData) {
-      // Use mock data for simulation page
-      setCollectionPoints(generateCollectionPoints());
+      hasInitialized.current = true;
+      return;
     }
-  }, [externalCollectionPoints, useRealData]);
+    
+    // For simulation page, generate mock data only once
+    if (!useRealData && !hasInitialized.current) {
+      const initialData = generateCollectionPoints();
+      setCollectionPoints(initialData);
+      hasInitialized.current = true;
+    }
+  }, [useRealData, externalCollectionPoints]);
 
   // Update parent component with current data (only for simulation/mock data)
   useEffect(() => {
-    if (onDataChange && !useRealData && collectionPoints.length > 0) {
-      const needsCollection = collectionPoints.filter(point => point.fillLevel >= 80).length;
-      onDataChange({
-        total: collectionPoints.length,
-        needsCollection,
-        points: collectionPoints
-      });
+    if (!onDataChange || useRealData || collectionPoints.length === 0) {
+      return;
+    }
+    
+    const needsCollection = collectionPoints.filter(point => point.fillLevel >= 80).length;
+    const newData = {
+      total: collectionPoints.length,
+      needsCollection,
+      points: collectionPoints
+    };
+    
+    // Only call onDataChange if data actually changed
+    const prevData = previousDataRef.current;
+    if (!prevData || 
+        prevData.total !== newData.total || 
+        prevData.needsCollection !== newData.needsCollection) {
+      previousDataRef.current = newData;
+      onDataChange(newData);
     }
   }, [collectionPoints, onDataChange, useRealData]);
 
@@ -355,7 +375,11 @@ export default function MapComponent({
 
   // Update routes when showRoutes or selectedTruck changes
   useEffect(() => {
-    if (!mapRef.current) return;
+    // Extra defensive check
+    if (!mapRef.current || !mapRef.current._loaded || !mapRef.current._container) {
+      console.debug('Map not ready for route updates');
+      return;
+    }
 
     // Clear existing routes with null check
     routesRef.current.forEach(route => {
@@ -363,7 +387,10 @@ export default function MapComponent({
         try {
           route.remove();
         } catch (error) {
-          console.warn('Error removing route:', error);
+          // Silently fail - map might be in transition
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('Error removing route:', error.message);
+          }
         }
       }
     });
@@ -418,11 +445,25 @@ export default function MapComponent({
           `);
       }); // Close SOURCE_POINTS.forEach
       
-      const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+      // Use savedRoutes if available, otherwise generate new routes
+      let routes;
+      if (savedRoutes && savedRoutes.length > 0) {
+        console.log('📦 Using saved routes from localStorage');
+        routes = savedRoutes;
+      } else {
+        console.log('🆕 Generating new routes');
+        routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+        
+        // Send routes to parent component only if newly generated
+        if (onRoutesGenerated) {
+          onRoutesGenerated(routes);
+        }
+      }
       
-      // Send routes to parent component
-      if (onRoutesGenerated) {
-        onRoutesGenerated(routes);
+      // If routes is still empty after generation, return early
+      if (!routes || routes.length === 0) {
+        console.warn('⚠️ No routes available to display');
+        return;
       }
       
       // Filter routes based on selected truck
@@ -473,7 +514,13 @@ export default function MapComponent({
             fitSelectedRoutes: false,
             showAlternatives: false,
             show: false,
-            createMarker: () => null // Don't create markers for waypoints
+            createMarker: () => null, // Don't create markers for waypoints
+            
+            // SUPPRESS DEFAULT ERROR HANDLER
+            errorHandler: function() {
+              // Custom error handler that does nothing (suppress console errors)
+              // Our 'routingerror' event handler below will handle errors gracefully
+            }
           }).addTo(mapRef.current);
 
           // Add popup and arrows to the route line
@@ -586,22 +633,29 @@ export default function MapComponent({
 
           // Add error handling with fallback to straight-line route
           routingControl.on('routingerror', function(e) {
-            // Use console.warn instead of error since we have a fallback
-            console.warn('⚠️ OSRM routing failed for', route.name);
-            console.warn('   Error details:', e.error || 'No error details');
-            console.warn('   Falling back to straight-line route');
+            // Suppress error logging to console (we handle it gracefully)
+            // Use console.debug for debugging only
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('ℹ️ OSRM routing service unavailable for', route.name, '- using fallback');
+            }
             
-            // Create a fallback straight-line route
-            const points = waypoints.map(wp => [wp.lat, wp.lng]);
-            const polyline = L.polyline(points, {
-              color: route.color,
-              weight: 6,
-              opacity: 0.7,
-              dashArray: '10, 5'
-            }).addTo(mapRef.current);
+            // Check if map still exists before creating fallback
+            if (!mapRef.current || !mapRef.current._loaded) {
+              return;
+            }
             
-            // Add arrows to fallback route
-            const arrowDecorator = L.polylineDecorator(polyline, {
+            try {
+              // Create a fallback straight-line route
+              const points = waypoints.map(wp => [wp.lat, wp.lng]);
+              const polyline = L.polyline(points, {
+                color: route.color,
+                weight: 6,
+                opacity: 0.7,
+                dashArray: '10, 5'
+              }).addTo(mapRef.current);
+              
+              // Add arrows to fallback route
+              const arrowDecorator = L.polylineDecorator(polyline, {
               patterns: [
                 {
                   offset: '5%',
@@ -663,10 +717,29 @@ export default function MapComponent({
                 console.warn('Error removing fallback route:', error);
               }
             } });
+            } catch (fallbackError) {
+              // Silently fail if map is no longer available
+              if (process.env.NODE_ENV === 'development') {
+                console.debug('Failed to create fallback route:', fallbackError.message);
+              }
+            }
           });
 
-          // Store the routing control for cleanup
-          routesRef.current.push(routingControl);
+          // Store the routing control for cleanup with safe wrapper
+          routesRef.current.push({
+            remove: () => {
+              try {
+                if (routingControl && routingControl.remove && mapRef.current) {
+                  routingControl.remove();
+                }
+              } catch (error) {
+                // Silently ignore cleanup errors
+                if (process.env.NODE_ENV === 'development') {
+                  console.debug('Error removing routing control:', error.message);
+                }
+              }
+            }
+          });
         } // close if (route.points.length > 1)
       }); // close routesToShow.forEach
     } else { // close if (showRoutes)
@@ -727,7 +800,7 @@ export default function MapComponent({
         markersRef.current.push(marker);
       });
     }
-  }, [showRoutes, collectionPoints, selectedTruckId]);
+  }, [showRoutes, collectionPoints, selectedTruckId, savedRoutes]);
 
   // Define randomize function
   const handleRandomize = () => {
@@ -767,20 +840,45 @@ export default function MapComponent({
 
   // Function to update routes on a specific map instance
   const updateMapRoutes = (mapInstance, routesContainer, markersContainer) => {
+    // Check if map instance is valid with extra checks
+    if (!mapInstance || !mapInstance._loaded || !mapInstance._container) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('⚠️ Map instance not available for route update');
+      }
+      return;
+    }
+    
     // Clear existing routes with null check
     routesContainer.forEach(route => {
       if (route && route.remove) {
         try {
           route.remove();
         } catch (error) {
-          console.warn('Error removing route in updateMapRoutes:', error);
+          // Silently fail during cleanup
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('Error removing route in updateMapRoutes:', error.message);
+          }
         }
       }
     });
     routesContainer.length = 0;
 
     if (showRoutes) {
-      const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+      // Use savedRoutes if available, otherwise generate new routes
+      let routes;
+      if (savedRoutes && savedRoutes.length > 0) {
+        console.log('📦 Using saved routes in updateMapRoutes');
+        routes = savedRoutes;
+      } else {
+        console.log('🆕 Generating new routes in updateMapRoutes');
+        routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+      }
+      
+      // If routes is still empty after generation, return early
+      if (!routes || routes.length === 0) {
+        console.warn('⚠️ No routes available to display in updateMapRoutes');
+        return;
+      }
       
       // Filter routes based on selected truck
       const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
@@ -845,7 +943,13 @@ export default function MapComponent({
             fitSelectedRoutes: false,
             showAlternatives: false,
             show: false,
-            createMarker: () => null
+            createMarker: () => null,
+            
+            // SUPPRESS DEFAULT ERROR HANDLER
+            errorHandler: function() {
+              // Custom error handler that does nothing (suppress console errors)
+              // Our 'routingerror' event handler below will handle errors gracefully
+            }
           }).addTo(mapInstance);
 
           // Add arrows when route is found
@@ -878,18 +982,27 @@ export default function MapComponent({
 
           // Add error handling for fullscreen/other map instances
           routingControl.on('routingerror', function(e) {
-            console.warn('⚠️ Road routing unavailable for', route.name, '- using direct route');
+            // Suppress error logging (graceful fallback)
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('ℹ️ OSRM routing unavailable - using fallback for', route.name);
+            }
             
-            // Create fallback straight-line route
-            const points = waypoints.map(wp => [wp.lat, wp.lng]);
-            const fallbackLine = L.polyline(points, {
-              color: route.color,
-              weight: 6,
-              opacity: 0.7,
-              dashArray: '10, 5'
-            }).addTo(mapInstance);
+            // Check if map instance still exists
+            if (!mapInstance || !mapInstance._loaded) {
+              return;
+            }
             
-            const arrowDecorator = L.polylineDecorator(fallbackLine, {
+            try {
+              // Create fallback straight-line route
+              const points = waypoints.map(wp => [wp.lat, wp.lng]);
+              const fallbackLine = L.polyline(points, {
+                color: route.color,
+                weight: 6,
+                opacity: 0.7,
+                dashArray: '10, 5'
+              }).addTo(mapInstance);
+              
+              const arrowDecorator = L.polylineDecorator(fallbackLine, {
               patterns: [
                 {
                   offset: '5%',
@@ -917,23 +1030,40 @@ export default function MapComponent({
                 console.warn('Error removing fallback route in updateMapRoutes:', error);
               }
             } });
+            } catch (fallbackError) {
+              // Silently fail if map is no longer available
+              if (process.env.NODE_ENV === 'development') {
+                console.debug('Failed to create fallback route:', fallbackError.message);
+              }
+            }
           });
 
-          routesContainer.push(routingControl);
+          // Safe cleanup wrapper for fullscreen routing control
+          routesContainer.push({
+            remove: () => {
+              try {
+                if (routingControl && routingControl.remove && mapInstance) {
+                  routingControl.remove();
+                }
+              } catch (error) {
+                if (process.env.NODE_ENV === 'development') {
+                  console.debug('Error removing fullscreen routing control:', error.message);
+                }
+              }
+            }
+          });
         }
       });
     }
   };
 
-  // Effect to handle routes on both maps
+  // Effect to handle routes on fullscreen map only (main map handled by main useEffect)
   useEffect(() => {
-    if (mapRef.current) {
-      updateMapRoutes(mapRef.current, routesRef.current, markersRef.current);
-    }
+    // Only update fullscreen map, not main map (to avoid duplicate rendering)
     if (fullscreenMapInstanceRef.current) {
       updateMapRoutes(fullscreenMapInstanceRef.current, fullscreenRoutesRef.current, fullscreenMarkersRef.current);
     }
-  }, [showRoutes, collectionPoints, selectedTruckId]);
+  }, [showRoutes, collectionPoints, selectedTruckId, savedRoutes]); // Added savedRoutes dependency
 
   // Effect to handle map in fullscreen mode
   useEffect(() => {

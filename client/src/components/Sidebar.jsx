@@ -20,6 +20,12 @@ export default function Sidebar() {
       activeIcon: "/SimulasiFill.svg"
     },
     {
+      href: "/tracking",
+      label: "Tracking",
+      icon: "/tracking.svg", 
+      activeIcon: "/tracking fill.svg",
+    },
+    {
       href: "/analitik",
       label: "Analitik",
       icon: "/Analitik.svg",
@@ -38,7 +44,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="pt-2 pb-4 lg:pt-4 lg:pb-6">
         <Link href="/" className="flex items-center justify-center">
-          <div className="relative w-14 lg:w-36 h-12 lg:h-16 p-2 lg:p-3 border-2 border-[#34A853] rounded-xl bg-gradient-to-br from-green-50 to-white shadow-[0_0_15px_rgba(52,168,83,0.3)] hover:shadow-[0_0_20px_rgba(52,168,83,0.5)] transition-all">
+          <div className="relative w-14 lg:w-36 h-12 lg:h-18 p-3 lg:p-4 rounded-xl bg-gradient-to-br from-green-50 to-white shadow-[0_0_15px_rgba(52,168,83,0.3)] hover:shadow-[0_0_20px_rgba(52,168,83,0.5)] transition-all">
             <Image
               src="/logoooo.svg"
               alt="Rutin-GA Logo"
@@ -68,7 +74,7 @@ export default function Sidebar() {
                   fill
                   sizes="(max-width: 640px) 32px, (max-width: 1024px) 40px, 42px"
                   className="object-contain"
-                  priority
+                  priority={pathname === item.href}
                 />
               </div>
               <span className="text-xs sm:text-sm lg:text-base transition-all group-hover:font-medium">
