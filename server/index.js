@@ -5,10 +5,9 @@ import dotenv from "dotenv";
 
 import connectDB from "./configs/database.js";
 import binRouter from "./routes/binRoutes.js";
-import solutionRouter from "./routes/solutionRoutes.js";
-import optimizeRouter from "./routes/optimizeRoutes.js";
+import simulationRouter from "./routes/simulationRoutes.js"
+import solutionRouter from "./routes/solutionRoutes.js"
 
-import mqtt from "mqtt";
 dotenv.config();
 
 connectDB();
@@ -20,13 +19,12 @@ app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/v1/bins',binRouter);
-app.use('/api/v1/solutions',solutionRouter);
-app.use('/api/v1/optimize', optimizeRouter);
+app.use('/api/v1/bins', binRouter);
+app.use('/api/v1/solutions', solutionRouter);
+app.use('/api/v1/simulation', simulationRouter);
 
 app.get("/", (req, res) => {
   res.send('Welcome to Waste Collection Management API');
-  res.send("API Capstone E09");
 });
 
 //ROUTES
@@ -64,8 +62,7 @@ client.on("message", (topic, message) => {
 });
 // ------------------END MQTT--------------
 
-// ? Error handler\
-// ? will be called automatically when the url doesn't exist or it's wrong
+// ? Error handler
 app.use((req, res, next) => {
   const error = new Error("Not found!");
   error.status = 404;

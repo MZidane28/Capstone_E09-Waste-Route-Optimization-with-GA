@@ -30,21 +30,25 @@ export const getBinById = async (req, res) => {
 // Create a new bin
 export const createBin = async (req, res) => {
     try {
-        const { name, location, capacity, demand, is_real } = req.body;
+        const { bin_id, name, location, capacity, fill_rate, current_fill_ga, current_fill_nn, is_real } = req.body;
         const newBin = new Bin({
+            bin_id,
             name,
             location,
             capacity,
-            demand,
+            fill_rate, 
+            current_fill_ga, 
+            current_fill_nn,
             is_real,
         });
-        await newBin.save().then(() => {
-            res.status(201).json({
-                statusCode: 201,
-                message: "Bin created successfully",
-                data: newBin,
-            });
+        await newBin.save();
+        
+        res.status(201).json({
+            success: true,
+            message: "Bin created successfully",
+            data: newBin,
         });
+
     } catch (error) {
         res.status(500).json({ 
             message: "Error creating bin", 
@@ -87,24 +91,6 @@ export const deleteBin = async (req, res) => {
     res.status(500).json({ 
         message: "Error deleting bin", 
         error: error.message, 
-    });
-  }
-};
-
-// Get random bins
-export const getRandomBins = async (req, res) => {
-  try {
-    const { count } = req.body;
-    if (!count || count <= 0) {
-      return res.status(400).json({ message: "Please provide a valid count" });
-    }
-
-    const randomBins = await Bin.aggregate([{ $sample: { size: count } }]);
-    res.status(200).json(randomBins);
-  } catch (error) {
-    res.status(500).json({ 
-        message: "Error fetching random bins", 
-        error: error.message,
     });
   }
 };

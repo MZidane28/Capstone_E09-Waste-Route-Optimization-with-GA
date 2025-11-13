@@ -1,11 +1,9 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
 import RandomButton from "@/components/RandomButton";
-import NavigationChunks from "@/components/NavigationChunks";
-import { mockRouteData } from "@/lib/mockRoutes";
 
 export default function Simulasi() {
   const [showRoutes, setShowRoutes] = useState(false);
@@ -15,34 +13,6 @@ export default function Simulasi() {
     needsCollection: 0,
     points: []
   });
-  const [routeWaypoints, setRouteWaypoints] = useState([]);
-  const [selectedTruckId, setSelectedTruckId] = useState(null); // Set to null for "All Trucks" by default
-  const [generatedRoutes, setGeneratedRoutes] = useState([]); // Store routes from MapComponent
-
-  // Update waypoints when truck selection or routes change
-  useEffect(() => {
-    if (showRoutes && generatedRoutes.length > 0) {
-      if (selectedTruckId !== null) {
-        // Find the specific truck's route
-        const selectedRoute = generatedRoutes.find(route => route.id === selectedTruckId);
-        if (selectedRoute && selectedRoute.points.length > 0) {
-          // Convert points array to waypoints format
-          const waypoints = selectedRoute.points.map(point => ({
-            lat: point[0],
-            lng: point[1]
-          }));
-          setRouteWaypoints(waypoints);
-        } else {
-          setRouteWaypoints([]);
-        }
-      } else {
-        // Show all routes waypoints (combine all trucks)
-        setRouteWaypoints([]);
-      }
-    } else {
-      setRouteWaypoints([]);
-    }
-  }, [showRoutes, selectedTruckId, generatedRoutes]);
   
   const handleStart = () => {
     setShowRoutes(true);
@@ -50,59 +20,17 @@ export default function Simulasi() {
 
   const handleRandom = () => {
     setShowRoutes(false); // Hide routes first
-    setSelectedTruckId(null); // Reset truck selection
     if (randomizeFn) {
       randomizeFn();
     }
   };
 
-  const handleTruckSelect = (truckId) => {
-    setSelectedTruckId(truckId);
+  const routeDetails = {
+    tujuan: showRoutes ? "Aktif" : "Menunggu",
+    jarak: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 0.5).toFixed(1)} Km` : "0 Km",
+    estimasi: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 2).toFixed(0)} menit` : "0 menit",
+    tongSampah: `${mapData.needsCollection}/${mapData.total} (${((mapData.needsCollection/mapData.total) * 100).toFixed(1)}%)`
   };
-
-  const handleRoutesGenerated = (routes) => {
-    setGeneratedRoutes(routes);
-  };
-
-  // Calculate route details based on selected truck or overall data
-  const calculateRouteDetails = () => {
-    if (!showRoutes) {
-      return {
-        tujuan: "Menunggu",
-        jarak: "0 Km",
-        estimasi: "0 menit",
-        tongSampah: `0/${mapData.total} (0%)`
-      };
-    }
-
-    // If a specific truck is selected, show its details
-    if (selectedTruckId !== null && generatedRoutes.length > 0) {
-      const selectedRoute = generatedRoutes.find(route => route.id === selectedTruckId);
-      if (selectedRoute) {
-        // Calculate approximate distance (each point ~0.3-0.5 km apart)
-        const approxDistance = selectedRoute.binCount * 0.4;
-        // Calculate approximate time (assuming 30 km/h average speed + 2 min per bin)
-        const approxTime = (approxDistance / 30) * 60 + (selectedRoute.binCount * 2);
-        
-        return {
-          tujuan: selectedRoute.name,
-          jarak: `~${approxDistance.toFixed(1)} Km`,
-          estimasi: `~${Math.round(approxTime)} menit`,
-          tongSampah: `${selectedRoute.binCount} tong sampah`
-        };
-      }
-    }
-
-    // Otherwise show overall statistics
-    return {
-      tujuan: showRoutes ? "Semua Truck Aktif" : "Menunggu",
-      jarak: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 0.5).toFixed(1)} Km` : "0 Km",
-      estimasi: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 2).toFixed(0)} menit` : "0 menit",
-      tongSampah: `${mapData.needsCollection}/${mapData.total} (${((mapData.needsCollection/mapData.total) * 100).toFixed(1)}%)`
-    };
-  };
-
-  const routeDetails = calculateRouteDetails();
 
   return (
     <>
@@ -117,9 +45,6 @@ export default function Simulasi() {
           showRoutes={showRoutes}
           onRandomize={setRandomizeFn}
           onDataChange={setMapData}
-          selectedTruckId={selectedTruckId}
-          onTruckSelect={handleTruckSelect}
-          onRoutesGenerated={handleRoutesGenerated}
         />
           
           {/* Buttons Section */}
@@ -130,14 +55,6 @@ export default function Simulasi() {
 
           {/* Route Details Section */}
           <RouteDetails details={routeDetails} isMobile={true} />
-
-          {/* Navigation Chunks Section - Mobile */}
-          {showRoutes && routeWaypoints.length > 0 && selectedTruckId && (
-            <NavigationChunks 
-              waypoints={routeWaypoints} 
-              truckId={`Truck ${selectedTruckId}`}
-            />
-          )}
         </div>
       </div>
 
@@ -151,9 +68,6 @@ export default function Simulasi() {
           showRoutes={showRoutes}
           onRandomize={setRandomizeFn}
           onDataChange={setMapData}
-          selectedTruckId={selectedTruckId}
-          onTruckSelect={handleTruckSelect}
-          onRoutesGenerated={handleRoutesGenerated}
         />
         
         {/* Details and Buttons Section */}
@@ -166,16 +80,6 @@ export default function Simulasi() {
             <RouteDetails details={routeDetails} />
           </div>
         </div>
-
-        {/* Navigation Chunks Section - Desktop */}
-        {showRoutes && routeWaypoints.length > 0 && selectedTruckId && (
-          <div className="bg-white rounded-lg shadow-md border-2 border-black">
-            <NavigationChunks 
-              waypoints={routeWaypoints} 
-              truckId={`Truck ${selectedTruckId}`}
-            />
-          </div>
-        )}
       </div>
     </>
   );

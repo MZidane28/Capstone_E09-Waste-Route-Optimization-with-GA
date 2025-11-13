@@ -78,37 +78,23 @@ const truckIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
-export default function MapComponent({ 
-  onRandomize, 
-  showRoutes = false, 
-  onDataChange,
-  selectedTruckId,
-  onTruckSelect,
-  collectionPoints: externalCollectionPoints = null,
-  useRealData = false,
-  onRoutesGenerated
-}) {
+export default function MapComponent({ onRandomize, showRoutes = false, onDataChange }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const markersRef = useRef([]);
   const routesRef = useRef([]);
   const [collectionPoints, setCollectionPoints] = useState([]);
+  const [selectedTruck, setSelectedTruck] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Initialize collection points
   useEffect(() => {
-    if (useRealData && externalCollectionPoints) {
-      // Use data from backend
-      setCollectionPoints(externalCollectionPoints);
-    } else if (!useRealData) {
-      // Use mock data for simulation page
-      setCollectionPoints(generateCollectionPoints());
-    }
-  }, [externalCollectionPoints, useRealData]);
+    setCollectionPoints(generateCollectionPoints());
+  }, []);
 
-  // Update parent component with current data (only for simulation/mock data)
+  // Update parent component with current data
   useEffect(() => {
-    if (onDataChange && !useRealData && collectionPoints.length > 0) {
+    if (onDataChange) {
       const needsCollection = collectionPoints.filter(point => point.fillLevel >= 80).length;
       onDataChange({
         total: collectionPoints.length,
@@ -116,7 +102,7 @@ export default function MapComponent({
         points: collectionPoints
       });
     }
-  }, [collectionPoints, onDataChange, useRealData]);
+  }, [collectionPoints, onDataChange]);
 
   // Initialize map
   useEffect(() => {
@@ -212,14 +198,9 @@ export default function MapComponent({
     if (showRoutes) {
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
-      // Send routes to parent component
-      if (onRoutesGenerated) {
-        onRoutesGenerated(routes);
-      }
-      
       // Filter routes based on selected truck
-      const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
-        ? routes.filter(route => route.id === selectedTruckId)
+      const routesToShow = selectedTruck 
+        ? routes.filter(route => route.id.toString() === selectedTruck)
         : routes;
 
       routesToShow.forEach(route => {
@@ -346,26 +327,24 @@ export default function MapComponent({
         }
       });
     }
-  }, [showRoutes, collectionPoints, selectedTruckId]);
+  }, [showRoutes, collectionPoints, selectedTruck]);
 
   // Define randomize function
   const handleRandomize = () => {
     setCollectionPoints(prevPoints => 
-      prevPoints.map(point => {
-        const newFillLevel = Math.floor(Math.random() * 100);
-        return {
-          ...point,
-          fillLevel: newFillLevel,
-          needsCollection: newFillLevel >= 80
-        };
-      })
+      prevPoints.map(point => ({
+        ...point,
+        fillLevel: Math.floor(Math.random() * 100),
+        needsCollection: Math.random() >= 0.2 // 20% chance of needing collection
+      }))
     );
+    setSelectedTruck(null); // Reset truck selection
   };
 
   // Set up randomize callback
   useEffect(() => {
     if (onRandomize) {
-      onRandomize(() => handleRandomize);
+      onRandomize(handleRandomize);
     }
   }, [onRandomize]);
 
@@ -394,8 +373,8 @@ export default function MapComponent({
       const routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
       
       // Filter routes based on selected truck
-      const routesToShow = selectedTruckId !== null && selectedTruckId !== undefined
-        ? routes.filter(route => route.id === selectedTruckId)
+      const routesToShow = selectedTruck 
+        ? routes.filter(route => route.id.toString() === selectedTruck)
         : routes;
 
       routesToShow.forEach(route => {
@@ -439,7 +418,7 @@ export default function MapComponent({
     if (fullscreenMapInstanceRef.current) {
       updateMapRoutes(fullscreenMapInstanceRef.current, fullscreenRoutesRef.current);
     }
-  }, [showRoutes, collectionPoints, selectedTruckId]);
+  }, [showRoutes, collectionPoints, selectedTruck]);
 
   // Effect to handle map in fullscreen mode
   useEffect(() => {
@@ -496,8 +475,8 @@ export default function MapComponent({
               <div className="truck-selector">
                 <TruckSelector
                   trucks={SOURCE_POINTS}
-                  selectedTruck={selectedTruckId}
-                  onSelect={onTruckSelect}
+                  selectedTruck={selectedTruck}
+                  onSelect={setSelectedTruck}
                 />
               </div>
             )}
@@ -529,8 +508,8 @@ export default function MapComponent({
                 <div className="ml-8">
                   <TruckSelector
                     trucks={SOURCE_POINTS}
-                    selectedTruck={selectedTruckId}
-                    onSelect={onTruckSelect}
+                    selectedTruck={selectedTruck}
+                    onSelect={setSelectedTruck}
                   />
                 </div>
               )}
