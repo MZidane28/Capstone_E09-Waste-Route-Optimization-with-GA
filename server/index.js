@@ -55,7 +55,7 @@ client.on("connect", () => {
 client.on("message", (topic, message) => {
   if (topic === topicPot) {
     const data = message.toString();
-    console.log(📥 Data received [${topic}]: ${data});
+    console.log(`📥 Data received [${topic}]: ${data}`);
 
     // Misal parsing data "ADC,Voltage"
     const [adc, voltage] = data.split(",");
