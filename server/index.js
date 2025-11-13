@@ -27,8 +27,7 @@ app.use('/api/v1/optimize', optimizeRouter);
 app.use('/api/tracking', trackingRouter);
 
 app.get("/", (req, res) => {
-  res.send('Welcome to Waste Collection Management API');
-  res.send("API Capstone E09");
+  res.send('Welcome to Waste Collection Management API - Capstone E09');
 });
 
 //ROUTES
@@ -66,7 +65,7 @@ client.on("message", (topic, message) => {
 });
 // ------------------END MQTT--------------
 
-// ? Error handler\
+// ? Error handler
 // ? will be called automatically when the url doesn't exist or it's wrong
 app.use((req, res, next) => {
   const error = new Error("Not found!");
