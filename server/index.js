@@ -2,11 +2,12 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import mqtt from "mqtt";
 
 import connectDB from "./configs/database.js";
 import binRouter from "./routes/binRoutes.js";
-import simulationRouter from "./routes/simulationRoutes.js"
-import solutionRouter from "./routes/solutionRoutes.js"
+import simulationRouter from "./routes/simulationRoutes.js";
+import solutionRouter from "./routes/solutionRoutes.js";
 
 dotenv.config();
 
