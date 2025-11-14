@@ -185,13 +185,7 @@ export default function Home() {
     }
   }, [showRoutes, selectedTruckId, generatedRoutes]);
   
-  // Auto-create truck assignments when routes are generated
-  useEffect(() => {
-    if (showRoutes && generatedRoutes.length > 0 && !trackingCreated) {
-      createTruckAssignments();
-    }
-  }, [showRoutes, generatedRoutes, trackingCreated]);
-
+  // createTruckAssignments function defined before useEffect
   const createTruckAssignments = async () => {
     try {
       // Create assignment for each truck
@@ -283,6 +277,14 @@ export default function Home() {
       setTrackingCreated(true);
     }
   };
+
+  // Auto-create truck assignments when routes are generated
+  useEffect(() => {
+    if (showRoutes && generatedRoutes.length > 0 && !trackingCreated) {
+      createTruckAssignments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRoutes, generatedRoutes, trackingCreated]);
   
   const handleStart = () => {
     console.log('🚀 Start button clicked');

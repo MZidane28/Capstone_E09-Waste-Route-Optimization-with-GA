@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useNotification } from '@/components/NotificationProvider';
 
-export default function DriverCheckInPage() {
+function DriverCheckInContent() {
   const searchParams = useSearchParams();
   const truckId = searchParams.get('truck');
   const { addNotification } = useNotification();
@@ -12,12 +12,6 @@ export default function DriverCheckInPage() {
   const [truck, setTruck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
-
-  useEffect(() => {
-    if (truckId) {
-      fetchTruckData();
-    }
-  }, [truckId]);
 
   const fetchTruckData = async () => {
     try {
@@ -30,6 +24,13 @@ export default function DriverCheckInPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (truckId) {
+      fetchTruckData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [truckId]);
 
   const handleCheckIn = async (bin) => {
     setCheckingIn(true);
@@ -235,5 +236,20 @@ export default function DriverCheckInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DriverCheckInPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-[#FDF8F2]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <DriverCheckInContent />
+    </Suspense>
   );
 }
