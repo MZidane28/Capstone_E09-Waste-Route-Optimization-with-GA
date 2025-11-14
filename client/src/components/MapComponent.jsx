@@ -467,18 +467,12 @@ export default function MapComponent({
         
         // Call GA optimization API via simulation endpoint
         try {
-          const depot = SOURCE_POINTS[0]; // Use first depot
-          
           const response = await fetch(API_ENDPOINTS.simulation.run, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              bins: collectionPoints,
-              numTrucks: SOURCE_POINTS.length,
-              depot: { lat: depot.lat, lng: depot.lng }
-            }),
+            // No body needed - backend will auto-increment day and optimize
           });
           
           if (!response.ok) {
@@ -486,13 +480,21 @@ export default function MapComponent({
           }
           
           const result = await response.json();
-          routes = result.data.routes;
           
-          console.log(`✅ GA optimization complete: ${routes.length} routes, total distance: ${result.data.totalDistance.toFixed(2)} km`);
-          
-          // Send routes to parent component
-          if (onRoutesGenerated) {
-            onRoutesGenerated(routes);
+          // Extract routes from simulation result
+          // result.data.gaResult contains the optimization data
+          if (result.success && result.data && result.data.gaResult) {
+            routes = result.data.gaResult.routes || [];
+            
+            console.log(`✅ Simulation complete: Day ${result.data.gaResult.simulation_day}`);
+            console.log(`   Routes: ${routes.length}, Distance: ${result.data.gaResult.total_distance?.toFixed(2)} km`);
+            
+            // Send routes to parent component
+            if (onRoutesGenerated) {
+              onRoutesGenerated(routes);
+            }
+          } else {
+            throw new Error('Invalid simulation response');
           }
         } catch (error) {
           console.warn('⚠️ GA API unavailable, falling back to mock routes');
