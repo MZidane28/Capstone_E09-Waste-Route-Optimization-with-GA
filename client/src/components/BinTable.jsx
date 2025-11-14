@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, ArrowUpDown } from 'lucide-react';
+import { API_ENDPOINTS } from '@/lib/config';
 
 export default function BinTable() {
   const [searchQuery, setSearchQuery] = useState('');
