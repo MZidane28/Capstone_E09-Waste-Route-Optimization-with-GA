@@ -13,37 +13,6 @@ export default function TrackingPage() {
   const [loading, setLoading] = useState(true);
   const [previousCheckIns, setPreviousCheckIns] = useState({});
 
-  useEffect(() => {
-    fetchTrucksStatus();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchTrucksStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Monitor for new check-ins
-  useEffect(() => {
-    trucks.forEach(truck => {
-      const prevCount = previousCheckIns[truck.truckId] || 0;
-      const currentCount = truck.checkIns?.length || 0;
-      
-      if (currentCount > prevCount) {
-        const latestCheckIn = truck.checkIns[currentCount - 1];
-        addNotification(
-          `🚛 ${truck.name} checked in at ${latestCheckIn.binName}`,
-          'success',
-          4000
-        );
-      }
-    });
-
-    // Update previous check-ins count
-    const newCounts = {};
-    trucks.forEach(truck => {
-      newCounts[truck.truckId] = truck.checkIns?.length || 0;
-    });
-    setPreviousCheckIns(newCounts);
-  }, [trucks]);
-
   const fetchTrucksStatus = async () => {
     try {
       const controller = new AbortController();
@@ -84,6 +53,39 @@ export default function TrackingPage() {
       }
     }
   };
+
+  useEffect(() => {
+    fetchTrucksStatus();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchTrucksStatus, 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Monitor for new check-ins
+  useEffect(() => {
+    trucks.forEach(truck => {
+      const prevCount = previousCheckIns[truck.truckId] || 0;
+      const currentCount = truck.checkIns?.length || 0;
+      
+      if (currentCount > prevCount) {
+        const latestCheckIn = truck.checkIns[currentCount - 1];
+        addNotification(
+          `🚛 ${truck.name} checked in at ${latestCheckIn.binName}`,
+          'success',
+          4000
+        );
+      }
+    });
+
+    // Update previous check-ins count
+    const newCounts = {};
+    trucks.forEach(truck => {
+      newCounts[truck.truckId] = truck.checkIns?.length || 0;
+    });
+    setPreviousCheckIns(newCounts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trucks]);
 
   const handleExportAll = () => {
     if (trucks.length === 0) {

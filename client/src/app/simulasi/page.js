@@ -76,18 +76,17 @@ export default function Simulasi() {
           console.warn('⚠️ Backend server offline. Using fallback mode.');
           addNotification('⚠️ Backend server offline. Simulation will use generated data.', 'warning');
         } else {
-          console.error('Error loading bins:', error.message);
-        }
-        // Fallback: let MapComponent generate random data
-        setCollectionPoints([]);
-        setLoading(false);
+        console.error('Error loading bins:', error.message);
       }
-    };
+      // Fallback: let MapComponent generate random data
+      setCollectionPoints([]);
+      setLoading(false);
+    }
+  };
 
-    fetchBins();
-  }, []);
-
-  // Load saved routes from localStorage on mount
+  fetchBins();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);  // Load saved routes from localStorage on mount
   useEffect(() => {
     const savedRoutes = localStorage.getItem('simulasi_routes');
     const savedShowRoutes = localStorage.getItem('simulasi_showRoutes');
@@ -183,13 +182,6 @@ export default function Simulasi() {
     }
   }, [showRoutes, selectedTruckId, generatedRoutes]);
   
-  // Auto-create truck assignments when routes are generated
-  useEffect(() => {
-    if (showRoutes && generatedRoutes.length > 0 && !trackingCreated) {
-      createTruckAssignments();
-    }
-  }, [showRoutes, generatedRoutes, trackingCreated]);
-
   const createTruckAssignments = async () => {
     try {
       // Create assignment for each truck
@@ -288,6 +280,14 @@ export default function Simulasi() {
       setTrackingCreated(true);
     }
   };
+
+  // Auto-create truck assignments when routes are generated
+  useEffect(() => {
+    if (showRoutes && generatedRoutes.length > 0 && !trackingCreated) {
+      createTruckAssignments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRoutes, generatedRoutes, trackingCreated]);
 
   const showNotification = (message, type = 'info') => {
     // Deprecated - using useNotification instead
