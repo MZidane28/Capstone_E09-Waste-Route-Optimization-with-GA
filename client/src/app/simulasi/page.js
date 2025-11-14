@@ -126,44 +126,52 @@ export default function Simulasi() {
       const promises = generatedRoutes.map(async (route) => {
         // Use route.bins if available (contains full bin data with fillLevel)
         // Otherwise fall back to using route.points (for backward compatibility)
-        let binData;
+        let routeData;
         
         if (route.bins && route.bins.length > 0) {
           // New format: use full bin data
-          binData = route.bins.map((bin, idx) => ({
-            id: bin.id,
-            name: `Bin ${idx + 1}`,
-            latitude: bin.lat,
-            longitude: bin.lng,
-            fillLevel: bin.fillLevel // Use actual fillLevel from simulation
+          routeData = route.bins.map((bin, idx) => ({
+            binId: bin.id || bin._id,
+            binName: bin.name || `Bin ${idx + 1}`,
+            location: {
+              lat: bin.lat,
+              lng: bin.lng
+            }
           }));
         } else {
           // Old format: use points (excluding depot start/end)
           const binPoints = route.points.slice(1, -1);
-          binData = binPoints.map((point, idx) => ({
-            id: `BIN${route.id}_${idx + 1}`,
-            name: `Bin ${idx + 1}`,
-            latitude: point[0],
-            longitude: point[1],
-            fillLevel: 85 // Default to 85% if no data available
+          routeData = binPoints.map((point, idx) => ({
+            binId: `bin-${route.id}-${idx + 1}`,
+            binName: `Bin ${idx + 1}`,
+            location: {
+              lat: point[0],
+              lng: point[1]
+            }
           }));
         }
         
         console.log(`📦 Creating assignment for ${route.name}:`);
-        console.log(`   Total bins to collect: ${binData.length}`);
-        console.log(`   All bins have fillLevel >= 80%: ✅`);
-        console.log(`   Bin fillLevels:`, binData.map(b => `${b.fillLevel}%`).join(', '));
+        console.log(`   Total bins to collect: ${routeData.length}`);
         
         const truckData = {
           truckId: `TRUCK${route.id.toString().padStart(3, '0')}`,
           name: route.name,
-          driverName: `Driver ${route.id}`,
-          driverPhone: `081234567${route.id}`,
-          route: binData
+          status: 'idle',
+          currentLocation: 'Depot',
+          progress: 0,
+          checkIns: [],
+          totalBins: routeData.length,
+          completedBins: 0,
+          estimatedCompletion: 'Not started',
+          route: routeData
         };
 
         try {
-          const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+          const trackingUrl = baseUrl.replace('/api/v1', '/api/tracking/trucks');
+          
+          const response = await fetch(trackingUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -171,14 +179,16 @@ export default function Simulasi() {
             body: JSON.stringify(truckData),
           });
 
-          if (!response.ok && response.status !== 200) { // 200 means updated existing
-            throw new Error('Failed to create truck assignment');
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Server error:', errorData);
+            throw new Error(errorData.error || 'Failed to create truck assignment');
           }
 
           const result = await response.json();
-          console.log(`✅ ${route.name}: ${result.totalBins} bins assigned`);
+          console.log(`✅ ${route.name}: ${result.data.totalBins} bins assigned`);
           
-          return response.status === 201 ? 'created' : 'updated'; // Return status
+          return 'created';
         } catch (fetchError) {
           console.error('Fetch error for truck:', route.id, fetchError);
           return 'error';
@@ -186,18 +196,14 @@ export default function Simulasi() {
       });
 
       const results = await Promise.all(promises);
-      const newlyCreated = results.filter(r => r === 'created').length;
-      const updated = results.filter(r => r === 'updated').length;
+      const created = results.filter(r => r === 'created').length;
       const errors = results.filter(r => r === 'error').length;
       
-      if (newlyCreated > 0 || updated > 0) {
+      if (created > 0) {
         setTrackingCreated(true);
-        let message = '';
-        if (newlyCreated > 0) message += `${newlyCreated} created`;
-        if (updated > 0) message += `${message ? ', ' : ''}${updated} updated`;
-        addNotification(`✅ Truck assignments: ${message}!`, 'success');
+        addNotification(`✅ ${created} truck assignments created!`, 'success');
       } else if (errors === 0) {
-        // Even if not newly created or updated, still mark as available
+        // Even if not newly created, still mark as available
         setTrackingCreated(true);
       }
     } catch (error) {

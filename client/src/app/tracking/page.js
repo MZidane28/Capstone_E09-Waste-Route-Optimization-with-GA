@@ -46,32 +46,112 @@ export default function TrackingPage() {
 
   const fetchTrucksStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/tracking/trucks');
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const trackingUrl = baseUrl.replace('/api/v1', '/api/tracking/trucks');
+      
+      const response = await fetch(trackingUrl);
       
       if (!response.ok) {
         throw new Error('Failed to fetch trucks');
       }
       
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || [];
       
-      console.log('📊 Raw data from API:', data.map(t => ({ truckId: t.truckId, name: t.name })));
+      console.log('📊 Fetched trucks from API:', data.length, 'trucks');
       
-      // Sort trucks by truckId string to ensure correct order (TRUCK001, TRUCK002, TRUCK003)
+      // Sort trucks by truckId string
       const sortedTrucks = [...data].sort((a, b) => {
-        // Compare truckId as strings
         return a.truckId.localeCompare(b.truckId);
       });
-      
-      console.log('✅ Sorted trucks:', sortedTrucks.map(t => ({ truckId: t.truckId, name: t.name })));
       
       setTrucks(sortedTrucks);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching trucks status:', error);
       setLoading(false);
-      // Don't show error notification on every refresh, just log it
+      
+      // Use mock data as fallback if API fails
       if (trucks.length === 0) {
-        addNotification('⚠️ Cannot connect to backend server. Please start the server.', 'warning');
+        console.log('⚠️ Using mock data as fallback');
+        const mockData = [
+          {
+            _id: '1',
+            truckId: 'TRUCK001',
+            name: 'Truck 1',
+            status: 'active',
+            currentLocation: 'Bin #5',
+            progress: 60,
+            checkIns: [
+              {
+                binId: 'bin-1',
+                binName: 'Bin #1',
+                timestamp: new Date(Date.now() - 3600000).toISOString(),
+                duration: 15
+              },
+              {
+                binId: 'bin-3',
+                binName: 'Bin #3',
+                timestamp: new Date(Date.now() - 1800000).toISOString(),
+                duration: 12
+              },
+              {
+                binId: 'bin-5',
+                binName: 'Bin #5',
+                timestamp: new Date(Date.now() - 600000).toISOString(),
+                duration: 18
+              }
+            ],
+            totalBins: 8,
+            completedBins: 3,
+            estimatedCompletion: '14:30'
+          },
+          {
+            _id: '2',
+            truckId: 'TRUCK002',
+            name: 'Truck 2',
+            status: 'completed',
+            currentLocation: 'Depot',
+            progress: 100,
+            checkIns: [
+              {
+                binId: 'bin-2',
+                binName: 'Bin #2',
+                timestamp: new Date(Date.now() - 7200000).toISOString(),
+                duration: 14
+              },
+              {
+                binId: 'bin-4',
+                binName: 'Bin #4',
+                timestamp: new Date(Date.now() - 5400000).toISOString(),
+                duration: 16
+              },
+              {
+                binId: 'bin-7',
+                binName: 'Bin #7',
+                timestamp: new Date(Date.now() - 3600000).toISOString(),
+                duration: 13
+              }
+            ],
+            totalBins: 6,
+            completedBins: 6,
+            estimatedCompletion: 'Completed'
+          },
+          {
+            _id: '3',
+            truckId: 'TRUCK003',
+            name: 'Truck 3',
+            status: 'idle',
+            currentLocation: 'Depot',
+            progress: 0,
+            checkIns: [],
+            totalBins: 5,
+            completedBins: 0,
+            estimatedCompletion: 'Not started'
+          }
+        ];
+        setTrucks(mockData);
+        addNotification('⚠️ Using demo data - Backend not available', 'warning');
       }
     }
   };

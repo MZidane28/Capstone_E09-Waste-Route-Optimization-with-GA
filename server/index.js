@@ -27,8 +27,7 @@ app.use('/api/v1/optimize', optimizeRouter);
 app.use('/api/tracking', trackingRouter);
 
 app.get("/", (req, res) => {
-  res.send('Welcome to Waste Collection Management API');
-  res.send("API Capstone E09");
+  res.send('Welcome to Waste Collection Management API - Capstone E09');
 });
 
 //ROUTES

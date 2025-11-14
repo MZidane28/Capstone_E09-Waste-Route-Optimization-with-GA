@@ -2,38 +2,38 @@ import express from 'express';
 import {
   getAllTrucks,
   getTruckById,
-  createTruckAssignment,
-  checkIn,
-  startRoute,
-  completeRoute,
-  deleteTruckAssignment,
-  deleteAllTrucks
+  createTruck,
+  updateTruckStatus,
+  addCheckIn,
+  assignRoute,
+  resetTruck,
+  deleteTruck
 } from '../controllers/trackingController.js';
 
 const router = express.Router();
 
-// GET all trucks with their status
+// GET all trucks
 router.get('/trucks', getAllTrucks);
 
-// GET specific truck by ID
-router.get('/trucks/:truckId', getTruckById);
+// GET single truck by ID
+router.get('/trucks/:id', getTruckById);
 
-// POST create new truck assignment
-router.post('/trucks', createTruckAssignment);
+// POST create new truck
+router.post('/trucks', createTruck);
 
-// POST check-in at a bin
-router.post('/checkin', checkIn);
+// PUT update truck status
+router.put('/trucks/:id/status', updateTruckStatus);
 
-// POST start route for a truck
-router.post('/trucks/:truckId/start', startRoute);
+// POST add check-in to truck
+router.post('/trucks/:id/checkin', addCheckIn);
 
-// POST complete route for a truck
-router.post('/trucks/:truckId/complete', completeRoute);
+// PUT assign route to truck
+router.put('/trucks/:id/route', assignRoute);
 
-// DELETE all truck assignments (must be before DELETE by truckId to match first)
-router.delete('/trucks', deleteAllTrucks);
+// PUT reset truck
+router.put('/trucks/:id/reset', resetTruck);
 
-// DELETE truck assignment
-router.delete('/trucks/:truckId', deleteTruckAssignment);
+// DELETE truck
+router.delete('/trucks/:id', deleteTruck);
 
 export default router;
