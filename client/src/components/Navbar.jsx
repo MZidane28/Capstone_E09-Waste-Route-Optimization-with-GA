@@ -19,6 +19,13 @@ const navItems = [
     activeIcon: "/SimulasiFill.svg"
   },
   {
+    href: "/tracking",
+    label: "Tracking",
+    icon: "📍",
+    activeIcon: "📍",
+    isEmoji: true
+  },
+  {
     href: "/analitik",
     label: "Analitik",
     icon: "/Analitik.svg",
@@ -47,14 +54,20 @@ const Navbar = () => {
               className="flex flex-col items-center gap-1 text-black hover:opacity-80 transition-opacity group"
             >
               <div className="relative w-8 h-8">
-                <Image
-                  src={isActive ? item.activeIcon : item.icon}
-                  alt={item.label}
-                  fill
-                  sizes="32px"
-                  className="object-contain"
-                  priority
-                />
+                {item.isEmoji ? (
+                  <div className="w-full h-full flex items-center justify-center text-2xl">
+                    {isActive ? item.activeIcon : item.icon}
+                  </div>
+                ) : (
+                  <Image
+                    src={isActive ? item.activeIcon : item.icon}
+                    alt={item.label}
+                    fill
+                    sizes="32px"
+                    className="object-contain"
+                    priority
+                  />
+                )}
               </div>
               <span className="text-xs transition-all group-hover:font-medium">
                 {item.label}

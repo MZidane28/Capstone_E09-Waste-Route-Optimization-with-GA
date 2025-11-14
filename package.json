@@ -1,0 +1,28 @@
+{
+  "name": "capstone-e09-testing-root",
+  "version": "1.0.0",
+  "description": "Testing scripts for Capstone E09 Waste Route Optimization",
+  "scripts": {
+    "test": "node run-tests.js",
+    "coverage": "node generate-coverage.js",
+    "test:backend": "cd server && npm test",
+    "test:frontend": "cd client && npm test",
+    "test:backend:watch": "cd server && npm run test:watch",
+    "test:frontend:watch": "cd client && npm run test:watch",
+    "test:backend:coverage": "cd server && npm run test:coverage",
+    "test:frontend:coverage": "cd client && npm run test:coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MZidane28/Capstone_E09-Waste-Route-Optimization-with-GA"
+  },
+  "keywords": [
+    "testing",
+    "jest",
+    "capstone",
+    "waste-management",
+    "route-optimization"
+  ],
+  "author": "Capstone E09 Team",
+  "license": "ISC"
+}

@@ -20,63 +20,79 @@ ChartJS.register(
 );
 
 export default function BarChart() {
+  // Mock data - 4 weeks in a month
+  const labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  
+  const data = {
+    datasets: [
+      {
+        label: 'Unoptimized',
+        data: [520, 485, 510, 495],
+        backgroundColor: '#3b82f6',
+        borderRadius: 4,
+      },
+      {
+        label: 'Optimized',
+        data: [380, 355, 365, 360],
+        backgroundColor: '#22c55e',
+        borderRadius: 4,
+      },
+    ],
+    labels,
+  };
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
+        labels: {
+          font: {
+            size: 12,
+            weight: 'bold',
+          },
+        },
       },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${context.parsed.y} km`;
+          }
+        }
+      }
     },
     scales: {
       y: {
-        min: 0,
-        max: 50,
-        ticks: {
-          stepSize: 10
-        }
-      }
-    }
-  };
-
-  const labels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY'];
-
-  const data = {
-    labels,
-    datasets: [
-      {
-        label: 'Legend',
-        data: [28, 22, 38, 23, 28, 22],
-        backgroundColor: '#3b82f6',
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Total Distance (km)',
+          font: {
+            size: 12,
+          },
+        },
       },
-      {
-        label: 'Legend',
-        data: [24, 18, 32, 19, 24, 18],
-        backgroundColor: '#22c55e',
+      x: {
+        title: {
+          display: true,
+          text: 'Week',
+          font: {
+            size: 12,
+          },
+        },
       },
-    ],
+    },
   };
 
   return (
     <div className="w-full p-4 bg-white rounded-[18px] border-2 border-black">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl text-black font-bold">Lorem Ipsum</h3>
-        <button className="p-2">⋮</button>
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg text-black font-bold">Total Distance per Week</h3>
+        <button className="p-2 hover:bg-gray-100 rounded">⋮</button>
       </div>
-      <div className="h-[150px]">
-        <Bar options={options} data={data} />
-      </div>
-      <div className="grid grid-cols-2 gap-8 mt-4">
-        <div>
-          <div className="text-gray-600">Label</div>
-          <div className="text-4xl text-black font-bold">14,744</div>
-          <div className="text-green-500">+13.6%</div>
-        </div>
-        <div>
-          <div className="text-gray-600">Label</div>
-          <div className="text-4xl text-black font-bold">14,744</div>
-          <div className="text-green-500">+13.6%</div>
-        </div>
+      <div style={{ height: '220px' }}>
+        <Bar data={data} options={options} />
       </div>
     </div>
   );
