@@ -31,7 +31,6 @@ export const generateCollectionPoints = (count = 200) => {
       id: `bin-${index + 1}`,
       lat,
       lng,
-      type: Math.random() > 0.5 ? "Organik" : "Anorganik",
       fillLevel,
       needsCollection: fillLevel >= 80
     };

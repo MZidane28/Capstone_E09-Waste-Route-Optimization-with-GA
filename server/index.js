@@ -8,6 +8,7 @@ import binRouter from "./routes/binRoutes.js";
 import solutionRouter from "./routes/solutionRoutes.js";
 import simulationRouter from "./routes/simulationRoutes.js";
 import trackingRouter from "./routes/trackingRoutes.js";
+import optimizeRouter from "./routes/optimizeRoutes.js";
 
 import mqtt from "mqtt";
 dotenv.config();
@@ -25,6 +26,7 @@ app.use('/api/v1/bins',binRouter);
 app.use('/api/v1/solutions',solutionRouter);
 app.use('/api/v1/simulation', simulationRouter);
 app.use('/api/tracking', trackingRouter);
+app.use('/api/v1/optimize', optimizeRouter);
 
 app.get("/", (req, res) => {
   res.send('Welcome to Waste Collection Management API');

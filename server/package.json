@@ -10,6 +10,7 @@
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "dev": "nodemon index.js",
     "seed": "node seed.js",
+    "seed:bins": "node seed-bins.js",
     "compare": "node run-comparison.js",
     "compare:small": "node run-comparison.js --bins 30 --trucks 2 --output comparison-small.csv",
     "compare:medium": "node run-comparison.js --bins 100 --trucks 3 --output comparison-medium.csv",

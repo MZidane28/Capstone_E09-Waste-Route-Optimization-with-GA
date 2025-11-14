@@ -7,15 +7,16 @@ import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
 import RandomButton from "@/components/RandomButton";
 import NavigationChunks from "@/components/NavigationChunks";
-import { mockRouteData } from "@/lib/mockRoutes";
 
 export default function Simulasi() {
   const router = useRouter();
   const { addNotification } = useNotification();
   const [showRoutes, setShowRoutes] = useState(false);
   const [randomizeFn, setRandomizeFn] = useState(null);
+  const [collectionPoints, setCollectionPoints] = useState([]); // Store bins from database
+  const [loading, setLoading] = useState(true); // Loading state for initial fetch
   const [mapData, setMapData] = useState({
-    total: 200,
+    total: 0,
     needsCollection: 0,
     points: []
   });
@@ -25,6 +26,66 @@ export default function Simulasi() {
   const [isGeneratingRoutes, setIsGeneratingRoutes] = useState(false); // Loading state for route generation
   const [isRandomizing, setIsRandomizing] = useState(false); // Loading state for randomization
   const [trackingCreated, setTrackingCreated] = useState(false); // Track if assignments created
+
+  // Fetch bins from database on mount
+  useEffect(() => {
+    const fetchBins = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('http://localhost:5000/api/v1/bins', {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch bins');
+        }
+        
+        const bins = await response.json();
+        
+        // Transform database bins and randomize fill levels
+        const points = bins.map(bin => {
+          const randomFillLevel = Math.floor(Math.random() * 100); // 0-100%
+          
+          return {
+            id: bin.bin_id,
+            lat: bin.location.lat,
+            lng: bin.location.lon,
+            fillLevel: randomFillLevel,
+            name: bin.name
+          };
+        });
+        
+        setCollectionPoints(points);
+        
+        const needsCollection = points.filter(point => point.fillLevel >= 80).length;
+        setMapData({
+          total: points.length,
+          needsCollection,
+          points
+        });
+        
+        console.log(`✅ Loaded ${points.length} bins from database for simulation`);
+        console.log(`📊 Bins needing collection: ${needsCollection}`);
+        setLoading(false);
+      } catch (error) {
+        if (error.name === 'AbortError' || error.message === 'Failed to fetch') {
+          console.warn('⚠️ Backend server offline. Using fallback mode.');
+          addNotification('⚠️ Backend server offline. Simulation will use generated data.', 'warning');
+        } else {
+          console.error('Error loading bins:', error.message);
+        }
+        // Fallback: let MapComponent generate random data
+        setCollectionPoints([]);
+        setLoading(false);
+      }
+    };
+
+    fetchBins();
+  }, []);
 
   // Load saved routes from localStorage on mount
   useEffect(() => {
@@ -90,25 +151,34 @@ export default function Simulasi() {
 
   // Update waypoints when truck selection or routes change
   useEffect(() => {
+    console.log('🔄 Waypoints effect triggered:', { showRoutes, selectedTruckId, routesCount: generatedRoutes.length });
+    
     if (showRoutes && generatedRoutes.length > 0) {
       if (selectedTruckId !== null) {
         // Find the specific truck's route
+        console.log('🔍 Looking for truck ID:', selectedTruckId);
         const selectedRoute = generatedRoutes.find(route => route.id === selectedTruckId);
+        console.log('🎯 Found route:', selectedRoute ? `${selectedRoute.name} with ${selectedRoute.points.length} points` : 'NOT FOUND');
+        
         if (selectedRoute && selectedRoute.points.length > 0) {
           // Convert points array to waypoints format
           const waypoints = selectedRoute.points.map(point => ({
             lat: point[0],
             lng: point[1]
           }));
+          console.log('✅ Setting waypoints:', waypoints.length);
           setRouteWaypoints(waypoints);
         } else {
+          console.log('⚠️ No waypoints - route not found or empty');
           setRouteWaypoints([]);
         }
       } else {
+        console.log('ℹ️ No truck selected (null) - clearing waypoints');
         // Show all routes waypoints (combine all trucks)
         setRouteWaypoints([]);
       }
     } else {
+      console.log('ℹ️ Routes not shown or no generated routes - clearing waypoints');
       setRouteWaypoints([]);
     }
   }, [showRoutes, selectedTruckId, generatedRoutes]);
@@ -163,13 +233,19 @@ export default function Simulasi() {
         };
 
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          
           const response = await fetch('http://localhost:5000/api/tracking/trucks', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(truckData),
+            signal: controller.signal
           });
+          
+          clearTimeout(timeoutId);
 
           if (!response.ok && response.status !== 200) { // 200 means updated existing
             throw new Error('Failed to create truck assignment');
@@ -180,7 +256,12 @@ export default function Simulasi() {
           
           return response.status === 201 ? 'created' : 'updated'; // Return status
         } catch (fetchError) {
-          console.error('Fetch error for truck:', route.id, fetchError);
+          // Silently handle server unavailable - don't spam console
+          if (fetchError.name === 'AbortError' || fetchError.message === 'Failed to fetch') {
+            // Server not running - this is expected in development
+            return 'error';
+          }
+          console.warn('Truck assignment error:', route.id, fetchError.message);
           return 'error';
         }
       });
@@ -229,17 +310,39 @@ export default function Simulasi() {
   };
 
   const handleRandom = () => {
+    console.log('🎲 Randomizing fill levels...');
     setIsRandomizing(true);
     setShowRoutes(false); // Hide routes first
     setSelectedTruckId(1); // Reset to Truck 1 (not "All Trucks")
     setTrackingCreated(false); // Reset tracking state
     setGeneratedRoutes([]); // Clear generated routes
+    
     // Clear saved routes from localStorage
     localStorage.removeItem('simulasi_routes');
     localStorage.setItem('simulasi_showRoutes', 'false');
-    if (randomizeFn) {
+    
+    // Randomize fill levels for existing bins
+    if (collectionPoints.length > 0) {
+      const randomizedPoints = collectionPoints.map(point => ({
+        ...point,
+        fillLevel: Math.floor(Math.random() * 100) // New random fill level 0-100%
+      }));
+      
+      setCollectionPoints(randomizedPoints);
+      
+      const needsCollection = randomizedPoints.filter(point => point.fillLevel >= 80).length;
+      setMapData({
+        total: randomizedPoints.length,
+        needsCollection,
+        points: randomizedPoints
+      });
+      
+      console.log(`✅ Randomized fill levels: ${needsCollection}/${randomizedPoints.length} bins need collection`);
+    } else if (randomizeFn) {
+      // Fallback to old random generation if no database bins
       randomizeFn();
     }
+    
     // Simulate randomization delay
     setTimeout(() => {
       setIsRandomizing(false);
@@ -247,10 +350,16 @@ export default function Simulasi() {
   };
 
   const handleTruckSelect = (truckId) => {
+    console.log('🚛 Truck selected:', truckId, 'Type:', typeof truckId);
+    console.log('📋 Available routes:', generatedRoutes.map(r => ({ id: r.id, name: r.name })));
     setSelectedTruckId(truckId);
   };
 
   const handleRoutesGenerated = (routes) => {
+    console.log('📦 Routes generated:', routes.length, 'routes');
+    routes.forEach(route => {
+      console.log(`  - Route ${route.id}: ${route.name}, ${route.binCount} bins, ${route.points.length} waypoints`);
+    });
     setGeneratedRoutes(routes);
   };
 
@@ -330,6 +439,17 @@ export default function Simulasi() {
     router.push('/tracking');
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading simulation data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Mobile Layout */}
@@ -347,6 +467,8 @@ export default function Simulasi() {
           onTruckSelect={handleTruckSelect}
           onRoutesGenerated={handleRoutesGenerated}
           savedRoutes={generatedRoutes}
+          useRealData={collectionPoints.length > 0}
+          collectionPoints={collectionPoints}
         />
           
           {/* Buttons Section */}
@@ -400,11 +522,21 @@ export default function Simulasi() {
           )}
 
           {/* Navigation Chunks Section - Mobile */}
-          {showRoutes && routeWaypoints.length > 0 && selectedTruckId && (
-            <NavigationChunks 
-              waypoints={routeWaypoints} 
-              truckId={`Truck ${selectedTruckId}`}
-            />
+          {showRoutes && selectedTruckId && (
+            routeWaypoints.length > 2 ? (
+              <NavigationChunks 
+                waypoints={routeWaypoints} 
+                truckId={`Truck ${selectedTruckId}`}
+              />
+            ) : (
+              <div className="bg-white rounded-lg shadow-md border-2 border-black p-6 text-center">
+                <div className="text-4xl mb-3">✅</div>
+                <h3 className="font-bold text-lg text-black mb-2">No Collection Needed</h3>
+                <p className="text-gray-600 text-sm">
+                  Truck {selectedTruckId} tidak memiliki sampah yang perlu diambil saat ini.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -423,6 +555,8 @@ export default function Simulasi() {
           onTruckSelect={handleTruckSelect}
           onRoutesGenerated={handleRoutesGenerated}
           savedRoutes={generatedRoutes}
+          useRealData={collectionPoints.length > 0}
+          collectionPoints={collectionPoints}
         />
         
         {/* Details and Buttons Section */}
@@ -478,13 +612,26 @@ export default function Simulasi() {
         )}
 
         {/* Navigation Chunks Section - Desktop */}
-        {showRoutes && routeWaypoints.length > 0 && selectedTruckId && (
-          <div className="bg-white rounded-lg shadow-md border-2 border-black">
-            <NavigationChunks 
-              waypoints={routeWaypoints} 
-              truckId={`Truck ${selectedTruckId}`}
-            />
-          </div>
+        {showRoutes && selectedTruckId && (
+          routeWaypoints.length > 2 ? (
+            <div className="bg-white rounded-lg shadow-md border-2 border-black">
+              <NavigationChunks 
+                waypoints={routeWaypoints} 
+                truckId={`Truck ${selectedTruckId}`}
+              />
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md border-2 border-black p-8 text-center">
+              <div className="text-6xl mb-4">✅</div>
+              <h3 className="font-bold text-2xl text-black mb-3">No Collection Needed</h3>
+              <p className="text-gray-600">
+                Truck {selectedTruckId} tidak memiliki sampah yang perlu diambil saat ini.
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                Semua tong sampah di rute ini masih di bawah 80% kapasitas.
+              </p>
+            </div>
+          )
         )}
       </div>
     </>

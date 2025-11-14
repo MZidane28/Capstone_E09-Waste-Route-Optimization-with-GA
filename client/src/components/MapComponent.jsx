@@ -238,7 +238,8 @@ export default function MapComponent({
   // Initialize collection points
   useEffect(() => {
     // If useRealData is true, use external collection points from parent (Beranda)
-    if (useRealData && externalCollectionPoints) {
+    if (useRealData && externalCollectionPoints && externalCollectionPoints.length > 0) {
+      console.log('🗺️ MapComponent received external bins:', externalCollectionPoints.length);
       setCollectionPoints(externalCollectionPoints);
       hasInitialized.current = true;
       return;
@@ -247,14 +248,15 @@ export default function MapComponent({
     // For simulation page, generate mock data only once
     if (!useRealData && !hasInitialized.current) {
       const initialData = generateCollectionPoints();
+      console.log('🎲 MapComponent generated random bins:', initialData.length);
       setCollectionPoints(initialData);
       hasInitialized.current = true;
     }
-  }, [useRealData, externalCollectionPoints]);
+  }, [useRealData, externalCollectionPoints, externalCollectionPoints?.length]);
 
-  // Update parent component with current data (only for simulation/mock data)
+  // Update parent component with current data (for simulation page when useRealData)
   useEffect(() => {
-    if (!onDataChange || useRealData || collectionPoints.length === 0) {
+    if (!onDataChange || collectionPoints.length === 0) {
       return;
     }
     
@@ -273,7 +275,7 @@ export default function MapComponent({
       previousDataRef.current = newData;
       onDataChange(newData);
     }
-  }, [collectionPoints, onDataChange, useRealData]);
+  }, [collectionPoints, onDataChange]);
 
   // Initialize map
   useEffect(() => {
@@ -313,7 +315,12 @@ export default function MapComponent({
 
   // Update markers when collection points change
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current) {
+      console.log('⚠️ Map not ready yet for markers');
+      return;
+    }
+
+    console.log('🎯 Rendering markers for', collectionPoints.length, 'bins');
 
     // Clear existing markers with null check
     markersRef.current.forEach(marker => {
@@ -329,12 +336,14 @@ export default function MapComponent({
 
     // Add collection points
     collectionPoints.forEach(point => {
-      // Determine marker color based on fill level and type
+      console.log(`🏷️ Bin ${point.id}: fillLevel=${point.fillLevel}%`);
+      
+      // Determine marker color based on fill level
       let color;
       if (point.fillLevel >= 80) {
         color = '#ef4444'; // Red for bins that need collection
       } else {
-        color = point.type === 'Organik' ? '#22c55e' : '#3b82f6';
+        color = '#3b82f6'; // Blue for bins under threshold
       }
 
       const marker = L.marker([point.lat, point.lng], {
@@ -344,13 +353,14 @@ export default function MapComponent({
         .bindPopup(`
           <div class="text-black">
             <b>ID: ${point.id}</b><br>
-            Type: ${point.type}<br>
             Fill Level: ${point.fillLevel}%<br>
             Status: ${point.fillLevel >= 80 ? 'Needs Collection' : 'OK'}
           </div>
         `);
       markersRef.current.push(marker);
     });
+    
+    console.log('✅ Rendered', markersRef.current.length - SOURCE_POINTS.length, 'bin markers');
 
     // Add source points (truck locations) - these serve as START and FINISH points
     SOURCE_POINTS.forEach(point => {
@@ -375,25 +385,26 @@ export default function MapComponent({
 
   // Update routes when showRoutes or selectedTruck changes
   useEffect(() => {
-    // Extra defensive check
-    if (!mapRef.current || !mapRef.current._loaded || !mapRef.current._container) {
-      console.debug('Map not ready for route updates');
-      return;
-    }
+    const generateAndDisplayRoutes = async () => {
+      // Extra defensive check
+      if (!mapRef.current || !mapRef.current._loaded || !mapRef.current._container) {
+        console.debug('Map not ready for route updates');
+        return;
+      }
 
-    // Clear existing routes with null check
-    routesRef.current.forEach(route => {
-      if (route && route.remove) {
-        try {
-          route.remove();
-        } catch (error) {
-          // Silently fail - map might be in transition
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('Error removing route:', error.message);
+      // Clear existing routes with null check
+      routesRef.current.forEach(route => {
+        if (route && route.remove) {
+          try {
+            route.remove();
+          } catch (error) {
+            // Silently fail - map might be in transition
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('Error removing route:', error.message);
+            }
           }
         }
-      }
-    });
+      });
     routesRef.current = [];
     
     // Clear existing route markers (numbered stops)
@@ -451,12 +462,44 @@ export default function MapComponent({
         console.log('📦 Using saved routes from localStorage');
         routes = savedRoutes;
       } else {
-        console.log('🆕 Generating new routes');
-        routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+        console.log('🧬 Generating routes with Genetic Algorithm...');
         
-        // Send routes to parent component only if newly generated
-        if (onRoutesGenerated) {
-          onRoutesGenerated(routes);
+        // Call GA optimization API
+        try {
+          const depot = SOURCE_POINTS[0]; // Use first depot
+          
+          const response = await fetch('http://localhost:5000/api/v1/optimize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              bins: collectionPoints,
+              numTrucks: SOURCE_POINTS.length,
+              depot: { lat: depot.lat, lng: depot.lng }
+            }),
+          });
+          
+          if (!response.ok) {
+            throw new Error('GA optimization failed');
+          }
+          
+          const result = await response.json();
+          routes = result.data.routes;
+          
+          console.log(`✅ GA optimization complete: ${routes.length} routes, total distance: ${result.data.totalDistance.toFixed(2)} km`);
+          
+          // Send routes to parent component
+          if (onRoutesGenerated) {
+            onRoutesGenerated(routes);
+          }
+        } catch (error) {
+          console.warn('⚠️ GA API unavailable, falling back to mock routes');
+          routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
+          
+          if (onRoutesGenerated) {
+            onRoutesGenerated(routes);
+          }
         }
       }
       
@@ -729,13 +772,24 @@ export default function MapComponent({
           routesRef.current.push({
             remove: () => {
               try {
-                if (routingControl && routingControl.remove && mapRef.current) {
-                  routingControl.remove();
+                // Check if map still exists and routing control is valid
+                if (routingControl && mapRef.current && mapRef.current.hasLayer) {
+                  // Remove event listeners first
+                  routingControl.off('routesfound');
+                  routingControl.off('routingerror');
+                  
+                  // Safely remove from map
+                  if (typeof routingControl.remove === 'function') {
+                    routingControl.remove();
+                  } else if (routingControl._map) {
+                    // Fallback: manually remove from map
+                    routingControl._map.removeControl(routingControl);
+                  }
                 }
               } catch (error) {
-                // Silently ignore cleanup errors
+                // Silently ignore cleanup errors - routing control may be already removed
                 if (process.env.NODE_ENV === 'development') {
-                  console.debug('Error removing routing control:', error.message);
+                  console.debug('Routing control cleanup (expected):', error.message);
                 }
               }
             }
@@ -762,7 +816,7 @@ export default function MapComponent({
         if (point.fillLevel >= 80) {
           color = '#ef4444'; // Red for bins that need collection
         } else {
-          color = point.type === 'Organik' ? '#22c55e' : '#3b82f6';
+          color = '#3b82f6'; // Blue for bins under threshold
         }
 
         const marker = L.marker([point.lat, point.lng], {
@@ -772,7 +826,6 @@ export default function MapComponent({
           .bindPopup(`
             <div class="text-black">
               <b>ID: ${point.id}</b><br>
-              Type: ${point.type}<br>
               Fill Level: ${point.fillLevel}%<br>
               Status: ${point.fillLevel >= 80 ? 'Needs Collection' : 'OK'}
             </div>
@@ -800,6 +853,9 @@ export default function MapComponent({
         markersRef.current.push(marker);
       });
     }
+    };
+    
+    generateAndDisplayRoutes();
   }, [showRoutes, collectionPoints, selectedTruckId, savedRoutes]);
 
   // Define randomize function
@@ -825,9 +881,11 @@ export default function MapComponent({
 
   // Effect to handle map resize when fullscreen changes
   useEffect(() => {
-    if (mapRef.current) {
+    if (mapRef.current && mapRef.current.invalidateSize) {
       setTimeout(() => {
-        mapRef.current.invalidateSize();
+        if (mapRef.current && mapRef.current.invalidateSize) {
+          mapRef.current.invalidateSize();
+        }
       }, 300);
     }
   }, [isFullscreen]);
@@ -1042,12 +1100,23 @@ export default function MapComponent({
           routesContainer.push({
             remove: () => {
               try {
-                if (routingControl && routingControl.remove && mapInstance) {
-                  routingControl.remove();
+                // Check if map still exists and routing control is valid
+                if (routingControl && mapInstance && mapInstance.hasLayer) {
+                  // Remove event listeners first
+                  routingControl.off('routesfound');
+                  routingControl.off('routingerror');
+                  
+                  // Safely remove from map
+                  if (typeof routingControl.remove === 'function') {
+                    routingControl.remove();
+                  } else if (routingControl._map) {
+                    mapInstance.removeControl(routingControl);
+                  }
                 }
               } catch (error) {
+                // Silently ignore cleanup errors
                 if (process.env.NODE_ENV === 'development') {
-                  console.debug('Error removing fullscreen routing control:', error.message);
+                  console.debug('Routing control cleanup (expected):', error.message);
                 }
               }
             }

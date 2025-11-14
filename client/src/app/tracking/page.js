@@ -46,7 +46,14 @@ export default function TrackingPage() {
 
   const fetchTrucksStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/tracking/trucks');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error('Failed to fetch trucks');
@@ -67,11 +74,13 @@ export default function TrackingPage() {
       setTrucks(sortedTrucks);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching trucks status:', error);
+      // Silently handle server unavailable - only show notification once
       setLoading(false);
-      // Don't show error notification on every refresh, just log it
-      if (trucks.length === 0) {
-        addNotification('⚠️ Cannot connect to backend server. Please start the server.', 'warning');
+      
+      if (trucks.length === 0 && (error.name === 'AbortError' || error.message === 'Failed to fetch')) {
+        addNotification('⚠️ Backend server offline. Start server to enable tracking.', 'warning');
+      } else if (error.name !== 'AbortError' && error.message !== 'Failed to fetch') {
+        console.warn('Tracking fetch error:', error.message);
       }
     }
   };

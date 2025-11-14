@@ -1,15 +1,63 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ArrowUpDown } from 'lucide-react';
 
 export default function BinTable() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedJenis, setSelectedJenis] = useState('all');
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: null
   });
+  const [bins, setBins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch bins from database
+  useEffect(() => {
+    const fetchBins = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('http://localhost:5000/api/v1/bins', {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch bins');
+        }
+        
+        const data = await response.json();
+        
+        // Transform database bins to table format
+        const transformedBins = data.map(bin => {
+          const fillLevel = bin.current_fill_ga || bin.fill_rate || 0;
+          const capacity = bin.capacity || 10;
+          const fillPercentage = Math.round((fillLevel / capacity) * 100);
+          
+          return {
+            id: bin.bin_id,
+            alamat: bin.name,
+            keterisian: `${fillPercentage}%`,
+            fillPercentage: fillPercentage,
+            status: fillPercentage >= 80 ? 'perlu diambil' : 'ok'
+          };
+        });
+        
+        setBins(transformedBins);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching bins:', error);
+        setError('Gagal memuat data tong sampah');
+        setLoading(false);
+      }
+    };
+
+    fetchBins();
+  }, []);
 
   const getStatusColor = (keterisian) => {
     const level = parseInt(keterisian);
@@ -17,18 +65,6 @@ export default function BinTable() {
     if (level >= 50) return 'bg-yellow-400';
     return 'bg-green-400';
   };
-
-  const dummyData = [
-    { id: "00001", alamat: "089 Kutch Green Apt. 448", jenis: "Organik", keterisian: "2%", status: "ok" },
-    { id: "00002", alamat: "979 Immanuel Ferry Suite 326", jenis: "Anorganik", keterisian: "10%", status: "ok" },
-    { id: "00003", alamat: "8587 Frida Ports", jenis: "Anorganik", keterisian: "7%", status: "ok" },
-    { id: "00004", alamat: "768 Destiny Lake Suite 600", jenis: "Anorganik", keterisian: "11%", status: "ok" },
-    { id: "00005", alamat: "642 Mylene Throughway", jenis: "Organik", keterisian: "100%", status: "ok" },
-    { id: "00006", alamat: "543 Weimann Mountain", jenis: "Anorganik", keterisian: "56%", status: "ok" },
-    { id: "00007", alamat: "New Scottleberg", jenis: "Organik", keterisian: "34%", status: "ok" },
-    { id: "00008", alamat: "New Jon", jenis: "Organik", keterisian: "25%", status: "ok" },
-    { id: "00009", alamat: "124 Lyla Forge Suite 975", jenis: "Organik", keterisian: "17%", status: "ok" }
-  ];
 
   const onSort = (key) => {
     let direction = 'asc';
@@ -42,11 +78,11 @@ export default function BinTable() {
     setSortConfig({ key, direction });
   };
 
-  const filteredAndSortedData = [...dummyData]
+  const filteredAndSortedData = [...bins]
     .filter(bin => {
-      const matchesSearch = bin.alamat.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesJenis = selectedJenis === 'all' || bin.jenis === selectedJenis;
-      return matchesSearch && matchesJenis;
+      const matchesSearch = bin.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           bin.id.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
     })
     .sort((a, b) => {
       if (!sortConfig.key || !sortConfig.direction) return 0;
@@ -55,8 +91,8 @@ export default function BinTable() {
       let bValue = b[sortConfig.key];
 
       if (sortConfig.key === 'keterisian') {
-        aValue = parseInt(aValue.replace('%', ''));
-        bValue = parseInt(bValue.replace('%', ''));
+        aValue = a.fillPercentage;
+        bValue = b.fillPercentage;
       }
 
       if (sortConfig.direction === 'asc') {
@@ -66,32 +102,40 @@ export default function BinTable() {
       }
     });
 
+  if (loading) {
+    return (
+      <div className="bg-white rounded-[18px] border-2 border-black p-8">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+          <span className="ml-4 text-gray-600">Loading data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-[18px] border-2 border-black p-8">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">⚠️ {error}</p>
+          <p className="text-gray-500 text-sm">Pastikan server backend sedang berjalan</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-[18px] border-2 border-black p-3 sm:p-4">
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="flex-1">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Cari alamat..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 text-sm sm:text-base border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none text-black placeholder-gray-500"
-            />
-            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-          </div>
-        </div>
-
-        <div className="w-full sm:w-48">
-          <select
-            value={selectedJenis}
-            onChange={(e) => setSelectedJenis(e.target.value)}
-            className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none text-black"
-          >
-            <option value="all">Semua Jenis</option>
-            <option value="Organik">Organik</option>
-            <option value="Anorganik">Anorganik</option>
-          </select>
+      <div className="mb-4 sm:mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Cari alamat atau ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 text-sm sm:text-base border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none text-black placeholder-gray-500"
+          />
+          <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
         </div>
       </div>
 
@@ -121,15 +165,6 @@ export default function BinTable() {
                   </th>
                   <th 
                     className="text-left py-2 sm:py-3 px-3 sm:px-4 cursor-pointer hover:bg-gray-50 text-black whitespace-nowrap text-sm sm:text-base font-semibold"
-                    onClick={() => onSort('jenis')}
-                  >
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      JENIS
-                      <ArrowUpDown size={14} className={`transition-colors ${sortConfig.key === 'jenis' ? 'text-black' : 'text-gray-400'}`} />
-                    </div>
-                  </th>
-                  <th 
-                    className="text-left py-2 sm:py-3 px-3 sm:px-4 cursor-pointer hover:bg-gray-50 text-black whitespace-nowrap text-sm sm:text-base font-semibold"
                     onClick={() => onSort('keterisian')}
                   >
                     <div className="flex items-center gap-1 sm:gap-2">
@@ -147,7 +182,6 @@ export default function BinTable() {
                   <tr key={bin.id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-2 sm:py-3 px-3 sm:px-4 text-sm sm:text-base text-black">{bin.id}</td>
                     <td className="py-2 sm:py-3 px-3 sm:px-4 text-sm sm:text-base text-black">{bin.alamat}</td>
-                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-sm sm:text-base text-black">{bin.jenis}</td>
                     <td className="py-2 sm:py-3 px-3 sm:px-4 text-sm sm:text-base text-black">{bin.keterisian}</td>
                     <td className="py-2 sm:py-3 px-3 sm:px-4">
                       <div className="w-20 sm:w-32 h-4 sm:h-6 bg-gray-50 rounded-xl border border-black overflow-hidden">
@@ -165,6 +199,24 @@ export default function BinTable() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Summary Info */}
+      <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-black">Total Bins:</span>
+          <span>{bins.length}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-black">Filtered:</span>
+          <span>{filteredAndSortedData.length}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-black">Perlu Diambil:</span>
+          <span className="text-red-600 font-bold">
+            {bins.filter(bin => bin.fillPercentage >= 80).length}
+          </span>
         </div>
       </div>
     </div>
