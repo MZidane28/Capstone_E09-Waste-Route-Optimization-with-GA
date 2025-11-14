@@ -9,6 +9,11 @@ export const BASE_API_URL = API_URL.replace(/\/$/, '');
 export const API_ENDPOINTS = {
   bins: `${BASE_API_URL}/bins`,
   optimize: `${BASE_API_URL}/optimize`,
+  simulation: {
+    run: `${BASE_API_URL}/simulation/run`,
+    status: `${BASE_API_URL}/simulation/status`,
+    initialize: `${BASE_API_URL}/simulation/initialize`,
+  },
   tracking: {
     trucks: `${BASE_API_URL.replace('/api/v1', '/api')}/tracking/trucks`,
     checkin: `${BASE_API_URL.replace('/api/v1', '/api')}/tracking/checkin`,

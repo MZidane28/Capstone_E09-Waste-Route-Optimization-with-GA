@@ -465,11 +465,11 @@ export default function MapComponent({
       } else {
         console.log('🧬 Generating routes with Genetic Algorithm...');
         
-        // Call GA optimization API
+        // Call GA optimization API via simulation endpoint
         try {
           const depot = SOURCE_POINTS[0]; // Use first depot
           
-          const response = await fetch(API_ENDPOINTS.optimize, {
+          const response = await fetch(API_ENDPOINTS.simulation.run, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
