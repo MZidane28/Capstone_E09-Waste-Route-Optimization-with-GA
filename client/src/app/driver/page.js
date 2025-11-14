@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useNotification } from '@/components/NotificationProvider';
+import { API_ENDPOINTS } from '@/lib/config';
 
 function DriverCheckInContent() {
   const searchParams = useSearchParams();
@@ -15,7 +16,7 @@ function DriverCheckInContent() {
 
   const fetchTruckData = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tracking/trucks/${truckId}`);
+      const response = await fetch(`${API_ENDPOINTS.tracking.trucks}/${truckId}`);
       const data = await response.json();
       setTruck(data);
       setLoading(false);
@@ -35,7 +36,7 @@ function DriverCheckInContent() {
   const handleCheckIn = async (bin) => {
     setCheckingIn(true);
     try {
-      const response = await fetch('http://localhost:5000/api/tracking/checkin', {
+      const response = await fetch(API_ENDPOINTS.tracking.checkin, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +67,7 @@ function DriverCheckInContent() {
 
   const handleStartRoute = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tracking/trucks/${truckId}/start`, {
+      const response = await fetch(`${API_ENDPOINTS.tracking.trucks}/${truckId}/start`, {
         method: 'POST',
       });
       if (response.ok) {
@@ -81,7 +82,7 @@ function DriverCheckInContent() {
 
   const handleCompleteRoute = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tracking/trucks/${truckId}/complete`, {
+      const response = await fetch(`${API_ENDPOINTS.tracking.trucks}/${truckId}/complete`, {
         method: 'POST',
       });
       if (response.ok) {

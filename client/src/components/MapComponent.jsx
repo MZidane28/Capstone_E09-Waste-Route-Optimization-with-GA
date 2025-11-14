@@ -6,6 +6,7 @@ import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import 'leaflet-routing-machine';
 import 'leaflet-polylinedecorator';
 import { SOURCE_POINTS, generateCollectionPoints, generateMockRoutes } from '@/lib/mapUtils';
+import { API_ENDPOINTS } from '@/lib/config';
 import TruckSelector from './TruckSelector';
 import '@/styles/map.css';
 
@@ -468,7 +469,7 @@ export default function MapComponent({
         try {
           const depot = SOURCE_POINTS[0]; // Use first depot
           
-          const response = await fetch('http://localhost:5000/api/v1/optimize', {
+          const response = await fetch(API_ENDPOINTS.optimize, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

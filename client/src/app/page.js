@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotification } from '@/components/NotificationProvider';
+import { API_ENDPOINTS } from '@/lib/config';
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
@@ -32,7 +33,7 @@ export default function Home() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch('http://localhost:5000/api/v1/bins', {
+        const response = await fetch(API_ENDPOINTS.bins, {
           signal: controller.signal
         });
         
@@ -229,7 +230,7 @@ export default function Home() {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           
-          const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+          const response = await fetch(API_ENDPOINTS.tracking.trucks, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -318,7 +319,7 @@ export default function Home() {
   const handleClearRoutes = async () => {
     try {
       // Delete all truck assignments from backend
-      const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+      const response = await fetch(API_ENDPOINTS.tracking.trucks, {
         method: 'DELETE',
       });
 
