@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNotification } from '@/components/NotificationProvider';
+import { API_ENDPOINTS } from '@/lib/config';
 import { exportCheckInReport, exportAllTrucksReport, exportRouteSummary, calculateRouteAnalytics } from '@/lib/exportUtils';
 import TruckStatusCard from '@/components/TruckStatusCard';
 import CheckInTimeline from '@/components/CheckInTimeline';
@@ -18,7 +19,7 @@ export default function TrackingPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
-      const response = await fetch('http://localhost:5000/api/tracking/trucks', {
+      const response = await fetch(API_ENDPOINTS.tracking.trucks, {
         signal: controller.signal
       });
       

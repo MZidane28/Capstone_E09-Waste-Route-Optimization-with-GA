@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, ArrowUpDown } from 'lucide-react';
+import { API_ENDPOINTS } from '@/lib/config';
 
 export default function BinTable() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,7 +21,7 @@ export default function BinTable() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch('http://localhost:5000/api/v1/bins', {
+        const response = await fetch(API_ENDPOINTS.bins, {
           signal: controller.signal
         });
         
