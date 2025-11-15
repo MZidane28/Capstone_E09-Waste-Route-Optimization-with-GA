@@ -9,7 +9,7 @@ function createSingleBinRoute(bin, distanceMatrix, method, truckCapacity  = 120)
     const startTime = performance.now();
 
     const fillField = method === 'ga' ? 'current_fill_ga' : 'current_fill_nn';
-    const demand = fillField;
+    const demand = bin[fillField] || 0; // Get actual numeric value from bin
     const utilization = demand / truckCapacity;
 
     const depotToBin = distanceMatrix[0][1];
@@ -22,6 +22,8 @@ function createSingleBinRoute(bin, distanceMatrix, method, truckCapacity  = 120)
         route: ['depot', bin.bin_id, 'depot'],
         distance: totalDistance,
         load: demand,
+        emissions: emissions,
+        utilization: utilization,
         avg_utilization: utilization,
         unused_capacity: truckCapacity - demand
     };

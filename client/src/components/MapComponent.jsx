@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import 'leaflet-routing-machine';
 import 'leaflet-polylinedecorator';
-import { SOURCE_POINTS, generateCollectionPoints, generateMockRoutes } from '@/lib/mapUtils';
+import { SOURCE_POINTS, DEPOT, generateCollectionPoints, generateMockRoutes } from '@/lib/mapUtils';
 import { API_ENDPOINTS } from '@/lib/config';
 import TruckSelector from './TruckSelector';
 import '@/styles/map.css';
@@ -361,27 +361,25 @@ export default function MapComponent({
       markersRef.current.push(marker);
     });
     
-    console.log('✅ Rendered', markersRef.current.length - SOURCE_POINTS.length, 'bin markers');
+    console.log('✅ Rendered', markersRef.current.length - 1, 'bin markers');
 
-    // Add source points (truck locations) - these serve as START and FINISH points
-    SOURCE_POINTS.forEach(point => {
-      const marker = L.marker([point.lat, point.lng], { icon: truckIcon })
-        .addTo(mapRef.current)
-        .bindPopup(`
-          <div style="padding: 10px; text-align: center;">
-            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${point.name}</div>
-            <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span style="color: #10b981; font-size: 12px;">🚀 START</span>
-              <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
-            </div>
-            <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">Depot & Base Location</div>
-            <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
-            <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">Routes start and end here</div>
+    // Add single depot marker (all trucks start and end here)
+    const depotMarker = L.marker([DEPOT.lat, DEPOT.lng], { icon: truckIcon })
+      .addTo(mapRef.current)
+      .bindPopup(`
+        <div style="padding: 10px; text-align: center;">
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${DEPOT.name}</div>
+          <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #10b981; font-size: 12px;">🚀 START</span>
+            <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
           </div>
-        `);
-      markersRef.current.push(marker);
-    });
+          <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">All trucks start & end here</div>
+          <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${DEPOT.lat.toFixed(5)}, ${DEPOT.lng.toFixed(5)}</div>
+          <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">3 trucks operate from this depot</div>
+        </div>
+      `);
+    markersRef.current.push(depotMarker);
   }, [collectionPoints]);
 
   // Update routes when showRoutes or selectedTruck changes
@@ -438,24 +436,22 @@ export default function MapComponent({
       });
       // Don't clear the array - we'll need to restore them later
       
-      // Re-add truck depot markers only
-      SOURCE_POINTS.forEach(point => {
-        const marker = L.marker([point.lat, point.lng], { icon: truckIcon })
-          .addTo(mapRef.current)
-          .bindPopup(`
-            <div style="padding: 10px; text-align: center;">
-              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${point.name}</div>
-              <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span style="color: #10b981; font-size: 12px;">🚀 START</span>
-                <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
-              </div>
-              <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">Depot & Base Location</div>
-              <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
-              <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">Routes start and end here</div>
+      // Re-add single depot marker (all trucks use same depot)
+      const depotMarker = L.marker([DEPOT.lat, DEPOT.lng], { icon: truckIcon })
+        .addTo(mapRef.current)
+        .bindPopup(`
+          <div style="padding: 10px; text-align: center;">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${DEPOT.name}</div>
+            <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #10b981; font-size: 12px;">🚀 START</span>
+              <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
             </div>
-          `);
-      }); // Close SOURCE_POINTS.forEach
+            <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">All trucks start & end here</div>
+            <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${DEPOT.lat.toFixed(5)}, ${DEPOT.lng.toFixed(5)}</div>
+            <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">3 trucks operate from this depot</div>
+          </div>
+        `);
       
       // Use savedRoutes if available, otherwise generate new routes
       let routes;
@@ -465,33 +461,53 @@ export default function MapComponent({
       } else {
         console.log('🧬 Generating routes with Genetic Algorithm...');
         
-        // Call GA optimization API via simulation endpoint
+        // Both Beranda and Simulasi use simulation endpoint
+        // Backend will auto-increment day, update fill levels, and optimize routes
+        console.log(`📍 Calling simulation endpoint - will auto-increment current_day`);
+        
+        // Call simulation API endpoint
         try {
+          console.log('📡 Fetching:', API_ENDPOINTS.simulation.run);
+          
           const response = await fetch(API_ENDPOINTS.simulation.run, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            // No body needed - backend will auto-increment day and optimize
+            // No body needed - backend handles everything automatically
           });
           
+          console.log('📥 Response status:', response.status, response.statusText);
+          
           if (!response.ok) {
-            throw new Error('GA optimization failed');
+            const errorText = await response.text();
+            console.error('❌ API Error:', errorText);
+            throw new Error(`Simulation API failed: ${response.status} ${errorText}`);
           }
           
           const result = await response.json();
           
-          // Extract routes from simulation result
-          // result.data.gaResult contains the optimization data
-          if (result.success && result.data && result.data.gaResult) {
-            routes = result.data.gaResult.routes || [];
+          // Parse simulation response: { success, data: { day, ga, nn } }
+          console.log('📦 Simulation response:', result);
+          
+          if (result.success && result.data) {
+            // Backend returns { day, ga: {...}, nn: {...} }
+            const gaData = result.data.ga;
             
-            console.log(`✅ Simulation complete: Day ${result.data.gaResult.simulation_day}`);
-            console.log(`   Routes: ${routes.length}, Distance: ${result.data.gaResult.total_distance?.toFixed(2)} km`);
-            
-            // Send routes to parent component
-            if (onRoutesGenerated) {
-              onRoutesGenerated(routes);
+            if (gaData && gaData.routes) {
+              routes = gaData.routes;
+              
+              console.log(`✅ Simulation complete: Day ${result.data.day}`);
+              console.log(`   Routes: ${routes.length}, Distance: ${gaData.total_distance?.toFixed(2)} km`);
+              console.log(`   Bins collected: ${gaData.total_bins || 'N/A'}`);
+              
+              // Send routes to parent component
+              if (onRoutesGenerated) {
+                onRoutesGenerated(routes);
+              }
+            } else {
+              console.warn('⚠️ No routes in GA result');
+              throw new Error('No routes in simulation response');
             }
           } else {
             throw new Error('Invalid simulation response');
@@ -521,13 +537,12 @@ export default function MapComponent({
         if (route.points.length > 1) { // Only show routes with collection points
           const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
           
-          // Get depot location from SOURCE_POINTS
-          const depot = SOURCE_POINTS.find(source => source.id === route.id);
-          const depotLatLng = L.latLng(depot.lat, depot.lng);
+          // All trucks use the same depot (DEPOT constant)
+          const depotLatLng = L.latLng(DEPOT.lat, DEPOT.lng);
           
           // Log route generation
           console.log(`🗺️ Generating route for ${route.name} with ${route.binCount} bins`);
-          console.log(`   Depot: [${depot.lat}, ${depot.lng}]`);
+          console.log(`   Depot: [${DEPOT.lat}, ${DEPOT.lng}] (shared depot)`);
           console.log(`   Total waypoints: ${waypoints.length} (depot → bins → depot)`);
           
           // Create routing control with OSRM (with better configuration)
@@ -836,25 +851,23 @@ export default function MapComponent({
         markersRef.current.push(marker);
       });
 
-      // Add source points (truck locations)
-      SOURCE_POINTS.forEach(point => {
-        const marker = L.marker([point.lat, point.lng], { icon: truckIcon })
-          .addTo(mapRef.current)
-          .bindPopup(`
-            <div style="padding: 10px; text-align: center;">
-              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${point.name}</div>
-              <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span style="color: #10b981; font-size: 12px;">🚀 START</span>
-                <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
-              </div>
-              <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">Depot & Base Location</div>
-              <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}</div>
-              <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">Routes start and end here</div>
+      // Add single depot marker (all trucks use same depot)
+      const depotMarker = L.marker([DEPOT.lat, DEPOT.lng], { icon: truckIcon })
+        .addTo(mapRef.current)
+        .bindPopup(`
+          <div style="padding: 10px; text-align: center;">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${DEPOT.name}</div>
+            <div style="background: linear-gradient(135deg, #10b981 50%, #ef4444 50%); height: 4px; margin: 8px 0; border-radius: 2px;"></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #10b981; font-size: 12px;">🚀 START</span>
+              <span style="color: #ef4444; font-size: 12px;">🏁 FINISH</span>
             </div>
-          `);
-        markersRef.current.push(marker);
-      });
+            <div style="color: #6b7280; font-size: 11px; margin-top: 6px;">All trucks start & end here</div>
+            <div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${DEPOT.lat.toFixed(5)}, ${DEPOT.lng.toFixed(5)}</div>
+            <div style="color: #9ca3af; font-size: 10px; font-style: italic; margin-top: 4px;">3 trucks operate from this depot</div>
+          </div>
+        `);
+      markersRef.current.push(depotMarker);
     }
     };
     

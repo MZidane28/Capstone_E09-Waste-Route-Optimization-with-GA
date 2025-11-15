@@ -8,11 +8,18 @@ const BOUNDS = {
   west: 110.3300
 };
 
-// Fixed source points (truck depots)
+// Single depot location - all trucks start and end here
+export const DEPOT = {
+  lat: -7.797068,
+  lng: 110.370529,
+  name: "Main Depot"
+};
+
+// Fixed source points (truck depots) - all trucks use the same depot
 export const SOURCE_POINTS = [
-  { id: 1, lat: -7.797068, lng: 110.370529, name: "Truck 1" },
-  { id: 2, lat: -7.792068, lng: 110.375529, name: "Truck 2" },
-  { id: 3, lat: -7.802068, lng: 110.373529, name: "Truck 3" }
+  { id: 1, lat: DEPOT.lat, lng: DEPOT.lng, name: "Truck 1" },
+  { id: 2, lat: DEPOT.lat, lng: DEPOT.lng, name: "Truck 2" },
+  { id: 3, lat: DEPOT.lat, lng: DEPOT.lng, name: "Truck 3" }
 ];
 
 // Generate a random point within Yogyakarta bounds

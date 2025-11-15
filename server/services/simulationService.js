@@ -82,35 +82,44 @@ export async function runGAoptimization(day) {
         const binsToCollect = await selectBinsforGA();
         if (binsToCollect.length === 0) {
             
-            const emptySolution = await Solution.create({
-                simulation_day : day,
-                method : 'ga',
-                total_distance : 0,
-                total_emissions : 0,
-                avg_utilization : 0,
-                number_of_trucks : 0,
-                execution_time : 0,
-                routes : []
-            });
+            // Use findOneAndUpdate with upsert to avoid duplicate key error
+            const emptySolution = await Solution.findOneAndUpdate(
+                { simulation_day: day, method: 'ga' },
+                {
+                    simulation_day: day,
+                    method: 'ga',
+                    total_distance: 0,
+                    total_emissions: 0,
+                    avg_utilization: 0,
+                    number_of_trucks: 0,
+                    execution_time: 0,
+                    routes: []
+                },
+                { upsert: true, new: true }
+            );
 
-            await emptySolution.save();
             console.log(`⚠️  GA: No bins to collect on day ${day}. Saved empty solution.`);
             return { solution: emptySolution };
         }
 
         const gaResult = await optimizeWithGA(binsToCollect);
-        const newSolution = await Solution.create({
-            simulation_day : day,
-            method : 'ga',
-            total_distance : gaResult.total_distance,
-            total_emissions : gaResult.total_emissions,
-            avg_utilization : gaResult.avg_utilization,
-            number_of_trucks : gaResult.number_of_trucks,
-            execution_time : gaResult.computation_time,
-            routes : gaResult.routes
-        });
+        
+        // Use findOneAndUpdate with upsert to avoid duplicate key error
+        const newSolution = await Solution.findOneAndUpdate(
+            { simulation_day: day, method: 'ga' },
+            {
+                simulation_day: day,
+                method: 'ga',
+                total_distance: gaResult.total_distance,
+                total_emissions: gaResult.total_emissions,
+                avg_utilization: gaResult.avg_utilization,
+                number_of_trucks: gaResult.number_of_trucks,
+                execution_time: gaResult.computation_time,
+                routes: gaResult.routes
+            },
+            { upsert: true, new: true }
+        );
 
-        await newSolution.save();
         console.log('GA solution is saved to database.');
 
         console.log('Return FULL data with locations for frontend visualization');
@@ -147,35 +156,44 @@ export async function runNNoptimization(day) {
         const binsToCollect = await selectBinsforNN(day);
         if (binsToCollect.length === 0) {
             
-            const emptySolution = await Solution.create({
-                simulation_day : day,
-                method : 'nn',
-                total_distance : 0,
-                total_emissions : 0,
-                avg_utilization : 0,
-                number_of_trucks : 0,
-                execution_time : 0,
-                routes : []
-            });
+            // Use findOneAndUpdate with upsert to avoid duplicate key error
+            const emptySolution = await Solution.findOneAndUpdate(
+                { simulation_day: day, method: 'nn' },
+                {
+                    simulation_day: day,
+                    method: 'nn',
+                    total_distance: 0,
+                    total_emissions: 0,
+                    avg_utilization: 0,
+                    number_of_trucks: 0,
+                    execution_time: 0,
+                    routes: []
+                },
+                { upsert: true, new: true }
+            );
 
-            await emptySolution.save();
             console.log(`⚠️  NN : No bins to collect on day ${day}. Saved empty solution.`);
             return { success: true };
         }
 
         const nnResult = await optimizeWithNN(binsToCollect);
-        const newSolution = await Solution.create({
-            simulation_day : day,
-            method : 'nn',
-            total_distance : nnResult.total_distance,
-            total_emissions : nnResult.total_emissions,
-            avg_utilization : nnResult.avg_utilization,
-            number_of_trucks : nnResult.number_of_trucks,
-            execution_time : nnResult.computation_time,
-            routes : nnResult.routes
-        });
+        
+        // Use findOneAndUpdate with upsert to avoid duplicate key error
+        const newSolution = await Solution.findOneAndUpdate(
+            { simulation_day: day, method: 'nn' },
+            {
+                simulation_day: day,
+                method: 'nn',
+                total_distance: nnResult.total_distance,
+                total_emissions: nnResult.total_emissions,
+                avg_utilization: nnResult.avg_utilization,
+                number_of_trucks: nnResult.number_of_trucks,
+                execution_time: nnResult.computation_time,
+                routes: nnResult.routes
+            },
+            { upsert: true, new: true }
+        );
 
-        await newSolution.save();
         console.log('NN solution is saved to database.');
 
         for(const bin of binsToCollect){
