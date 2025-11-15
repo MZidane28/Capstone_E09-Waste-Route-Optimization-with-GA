@@ -136,7 +136,6 @@ export default function TrackingPage() {
             onClick={handleExportAll}
             className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 border-2 border-black shadow-md"
           >
-            <span>📥</span>
             <span>Export All Reports</span>
           </button>
         </div>
