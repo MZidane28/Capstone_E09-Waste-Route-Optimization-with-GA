@@ -596,7 +596,6 @@ export default function Simulasi() {
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center gap-3"
             >
               <span className="text-lg">View Live Tracking Dashboard</span>
-              <span className="text-2xl">→</span>
             </button>
             
             <button

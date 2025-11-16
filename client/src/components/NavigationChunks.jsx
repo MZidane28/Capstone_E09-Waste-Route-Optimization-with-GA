@@ -83,7 +83,6 @@ export default function NavigationChunks({ waypoints, truckId }) {
         >
           <div className="flex items-center justify-center gap-2">
             <span>Navigate Full Route in Google Maps</span>
-            <span className="text-xl">→</span>
           </div>
           <div className="text-xs mt-1 opacity-90">
             {waypoints.length} waypoints • Optimized route
