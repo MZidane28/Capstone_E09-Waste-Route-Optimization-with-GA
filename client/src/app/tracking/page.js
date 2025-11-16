@@ -72,7 +72,7 @@ export default function TrackingPage() {
       if (currentCount > prevCount) {
         const latestCheckIn = truck.checkIns[currentCount - 1];
         addNotification(
-          `🚛 ${truck.name} checked in at ${latestCheckIn.binName}`,
+          `${truck.name} checked in at ${latestCheckIn.binName}`,
           'success',
           4000
         );
@@ -136,7 +136,6 @@ export default function TrackingPage() {
             onClick={handleExportAll}
             className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 border-2 border-black shadow-md"
           >
-            <span>📥</span>
             <span>Export All Reports</span>
           </button>
         </div>
@@ -200,14 +199,14 @@ export default function TrackingPage() {
                   onClick={() => handleExportTruck(selectedTruck)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"
                 >
-                  <span>📥</span>
+                  <span></span>
                   <span>Check-ins</span>
                 </button>
                 <button
                   onClick={() => handleExportSummary(selectedTruck)}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"
                 >
-                  <span>📊</span>
+                  <span></span>
                   <span>Summary</span>
                 </button>
                 <button

@@ -21,9 +21,8 @@ const navItems = [
   {
     href: "/tracking",
     label: "Tracking",
-    icon: "📍",
-    activeIcon: "📍",
-    isEmoji: true
+    icon: "/tracking.svg",
+    activeIcon: "/tracking fill.svg"
   },
   {
     href: "/analitik",

@@ -53,13 +53,13 @@ function DriverCheckInContent() {
       if (response.ok) {
         // Refresh truck data
         await fetchTruckData();
-        addNotification(`✅ Check-in successful at ${bin.name}!`, 'success');
+        addNotification(`Check-in successful at ${bin.name}!`, 'success');
       } else {
-        addNotification(`❌ Check-in failed at ${bin.name}`, 'error');
+        addNotification(`Check-in failed at ${bin.name}`, 'error');
       }
     } catch (error) {
       console.error('Error checking in:', error);
-      addNotification('❌ Check-in failed. Please try again.', 'error');
+      addNotification('Check-in failed. Please try again.', 'error');
     } finally {
       setCheckingIn(false);
     }
@@ -72,11 +72,11 @@ function DriverCheckInContent() {
       });
       if (response.ok) {
         await fetchTruckData();
-        addNotification('✅ Route started successfully!', 'success');
+        addNotification('Route started successfully!', 'success');
       }
     } catch (error) {
       console.error('Error starting route:', error);
-      addNotification('❌ Failed to start route', 'error');
+      addNotification('Failed to start route', 'error');
     }
   };
 
@@ -87,11 +87,11 @@ function DriverCheckInContent() {
       });
       if (response.ok) {
         await fetchTruckData();
-        addNotification('🎉 Route completed successfully!', 'success');
+        addNotification('Route completed successfully!', 'success');
       }
     } catch (error) {
       console.error('Error completing route:', error);
-      addNotification('❌ Failed to complete route', 'error');
+      addNotification('Failed to complete route', 'error');
     }
   };
 
@@ -114,7 +114,7 @@ function DriverCheckInContent() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#FDF8F2]">
         <div className="text-center bg-white rounded-xl border-2 border-black p-8">
-          <p className="text-red-600 text-lg font-semibold">❌ Truk tidak ditemukan</p>
+          <p className="text-red-600 text-lg font-semibold">Truk tidak ditemukan</p>
           <p className="text-gray-500 mt-2">Pastikan URL sudah benar</p>
         </div>
       </div>
@@ -162,7 +162,7 @@ function DriverCheckInContent() {
                 onClick={handleStartRoute}
                 className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
               >
-                🚀 Mulai Rute
+                Mulai Rute
               </button>
             )}
             {truck.status === 'active' && truck.checkedInBins === truck.totalBins && (
@@ -170,7 +170,7 @@ function DriverCheckInContent() {
                 onClick={handleCompleteRoute}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
-                ✅ Selesaikan Rute
+                Selesaikan Rute
               </button>
             )}
           </div>
@@ -182,16 +182,16 @@ function DriverCheckInContent() {
               truck.status === 'completed' ? 'bg-blue-100 text-blue-700' :
               'bg-gray-100 text-gray-700'
             }`}>
-              {truck.status === 'active' ? '🚛 Sedang Berjalan' :
-               truck.status === 'completed' ? '✅ Selesai' :
-               '⏸️ Idle'}
+              {truck.status === 'active' ? 'Sedang Berjalan' :
+               truck.status === 'completed' ? 'Selesai' :
+               'Idle'}
             </span>
           </div>
         </div>
 
         {/* Bins List */}
         <div className="space-y-3">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">📋 Daftar Bin</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Daftar Bin</h2>
           {truck.route && truck.route.length > 0 ? (
             truck.route.map((bin, index) => {
               const checked = isCheckedIn(bin.id);

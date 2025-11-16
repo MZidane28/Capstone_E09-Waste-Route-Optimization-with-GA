@@ -69,13 +69,13 @@ export default function Simulasi() {
           points
         });
         
-        console.log(`✅ Loaded ${points.length} bins from database for simulation`);
-        console.log(`📊 Bins needing collection: ${needsCollection}`);
+        console.log(`Loaded ${points.length} bins from database for simulation`);
+        console.log(`Bins needing collection: ${needsCollection}`);
         setLoading(false);
       } catch (error) {
         if (error.name === 'AbortError' || error.message === 'Failed to fetch') {
-          console.warn('⚠️ Backend server offline. Using fallback mode.');
-          addNotification('⚠️ Backend server offline. Simulation will use generated data.', 'warning');
+          console.warn('Backend server offline. Using fallback mode.');
+          addNotification('Backend server offline. Simulation will use generated data.', 'warning');
         } else {
         console.error('Error loading bins:', error.message);
       }
@@ -98,7 +98,7 @@ export default function Simulasi() {
       try {
         const routes = JSON.parse(savedRoutes);
         setGeneratedRoutes(routes);
-        console.log('📦 Loaded saved routes:', routes.length, 'trucks');
+        console.log('Loaded saved routes:', routes.length, 'trucks');
       } catch (e) {
         console.error('Error parsing saved routes:', e);
       }
@@ -126,7 +126,7 @@ export default function Simulasi() {
   useEffect(() => {
     if (generatedRoutes.length > 0) {
       localStorage.setItem('simulasi_routes', JSON.stringify(generatedRoutes));
-      console.log('💾 Routes saved to localStorage');
+      console.log('Routes saved to localStorage');
     }
   }, [generatedRoutes]);
 
@@ -156,9 +156,9 @@ export default function Simulasi() {
     if (showRoutes && generatedRoutes.length > 0) {
       if (selectedTruckId !== null) {
         // Find the specific truck's route
-        console.log('🔍 Looking for truck ID:', selectedTruckId);
+        console.log('Looking for truck ID:', selectedTruckId);
         const selectedRoute = generatedRoutes.find(route => route.id === selectedTruckId);
-        console.log('🎯 Found route:', selectedRoute ? `${selectedRoute.name} with ${selectedRoute.points.length} points` : 'NOT FOUND');
+        console.log('Found route:', selectedRoute ? `${selectedRoute.name} with ${selectedRoute.points.length} points` : 'NOT FOUND');
         
         if (selectedRoute && selectedRoute.points.length > 0) {
           // Convert points array to waypoints format
@@ -166,19 +166,19 @@ export default function Simulasi() {
             lat: point[0],
             lng: point[1]
           }));
-          console.log('✅ Setting waypoints:', waypoints.length);
+          console.log('Setting waypoints:', waypoints.length);
           setRouteWaypoints(waypoints);
         } else {
-          console.log('⚠️ No waypoints - route not found or empty');
+          console.log('No waypoints - route not found or empty');
           setRouteWaypoints([]);
         }
       } else {
-        console.log('ℹ️ No truck selected (null) - clearing waypoints');
+        console.log('No truck selected (null) - clearing waypoints');
         // Show all routes waypoints (combine all trucks)
         setRouteWaypoints([]);
       }
     } else {
-      console.log('ℹ️ Routes not shown or no generated routes - clearing waypoints');
+      console.log('Routes not shown or no generated routes - clearing waypoints');
       setRouteWaypoints([]);
     }
   }, [showRoutes, selectedTruckId, generatedRoutes]);
@@ -507,7 +507,6 @@ export default function Simulasi() {
                 onClick={handleViewTracking}
                 className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center justify-center gap-2"
               >
-                <span className="text-xl">📍</span>
                 <span>View Live Tracking</span>
                 <span className="text-xl">→</span>
               </button>
@@ -516,7 +515,6 @@ export default function Simulasi() {
                 onClick={handleClearRoutes}
                 className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors border-2 border-black flex items-center justify-center gap-2"
               >
-                <span>🗑️</span>
                 <span className="text-sm">Clear Routes</span>
               </button>
             </div>
@@ -597,16 +595,13 @@ export default function Simulasi() {
               onClick={handleViewTracking}
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center gap-3"
             >
-              <span className="text-2xl">📍</span>
               <span className="text-lg">View Live Tracking Dashboard</span>
-              <span className="text-2xl">→</span>
             </button>
             
             <button
               onClick={handleClearRoutes}
               className="bg-red-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-red-700 transition-colors border-2 border-black flex items-center gap-2"
             >
-              <span className="text-xl">🗑️</span>
               <span>Clear Routes</span>
             </button>
           </div>

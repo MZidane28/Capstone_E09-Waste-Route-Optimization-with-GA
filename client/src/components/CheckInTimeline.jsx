@@ -6,7 +6,7 @@ export default function CheckInTimeline({ truck }) {
     <div className="space-y-4">
       {/* Route Overview */}
       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-        <h3 className="font-semibold text-gray-700 mb-2">📋 Rute yang Ditugaskan</h3>
+        <h3 className="font-semibold text-gray-700 mb-2">Rute yang Ditugaskan</h3>
         <div className="flex flex-wrap gap-2">
           {route.map((bin, index) => {
             const isCheckedIn = checkIns.some(c => c.binId === bin.id && c.status === 'completed');
