@@ -80,18 +80,33 @@ export async function optimizeWithGA(bins) {
             demand : b.current_fill_ga
         }));
 
-        console.log('\n 3 Preparing bins data...');
+        console.log('\n 3️⃣ Preparing bins data...');
+        console.log('   Sample bins data:', JSON.stringify(binsData.slice(0, 3), null, 2));
+        
+        // Validate bins data
+        const invalidBins = binsData.filter(b => !b.id || b.demand === null || b.demand === undefined || isNaN(b.demand));
+        if (invalidBins.length > 0) {
+            console.error('❌ Invalid bins found:', invalidBins);
+            throw new Error(`Invalid bin data: ${invalidBins.length} bins have missing/invalid demand values`);
+        }
+        
         const payload = {
             bins : binsData,
             distance_matrix : distanceMatrix
         };
 
-        console.log('\n 4 Payload validation:');
+        console.log('\n 4️⃣ Payload validation:');
         console.log('   Bins count:', payload.bins.length);
         console.log('   Matrix size:', payload.distance_matrix.length, 'x', payload.distance_matrix[0]?.length);
         console.log('   Size match:', payload.distance_matrix.length === payload.bins.length + 1 ? '✅' : '❌');
+        
+        if (payload.distance_matrix.length !== payload.bins.length + 1) {
+            throw new Error(`Matrix size mismatch! Expected ${payload.bins.length + 1}, got ${payload.distance_matrix.length}`);
+        }
     
-        console.log('\n 5 Calling Azure:', PYTHON_SERVICE_URL);
+        console.log('\n 5️⃣ Calling Azure:', PYTHON_SERVICE_URL);
+        console.log('   Full payload:', JSON.stringify(payload, null, 2).substring(0, 500) + '...');
+        
         const response = await axios.post(
             `${PYTHON_SERVICE_URL}/solve-ga`,
             payload,
@@ -103,15 +118,36 @@ export async function optimizeWithGA(bins) {
             }
         );
 
-        console.log('\n 6 ✅ GA Optimization Success!');
+        console.log('\n 6️⃣ ✅ GA Optimization Success!');
         console.log('   Total distance:', response.data.total_distance, 'km');
         console.log('   Routes:', response.data.routes.length);
         console.log('   Avg utilization:', (response.data.avg_utilization * 100).toFixed(1) + '%');
         console.log('   Execution time:', response.data.computation_time.toFixed(2) + 's');
+        
+        // VALIDATION: Log each route to check depot presence
+        response.data.routes.forEach((route, idx) => {
+            const routePath = route.route || [];
+            const startsWithDepot = routePath[0] === 'depot';
+            const endsWithDepot = routePath[routePath.length - 1] === 'depot';
+            console.log(`   Route ${idx + 1} (Truck ${route.truck_no}):`, {
+                length: routePath.length,
+                startsWithDepot,
+                endsWithDepot,
+                route: routePath
+            });
+        });
+        
         console.log('='.repeat(70) + '\n');
         
         return response.data;
     } catch (error) {
+        console.error('\n❌ GA Optimization Error:');
+        console.error('   Message:', error.message);
+        if (error.response) {
+            console.error('   Status:', error.response.status);
+            console.error('   Data:', error.response.data);
+        }
+        console.error('='.repeat(70) + '\n');
         throw new Error(`GA optimization failed: ${error.message}`);
     }
 }

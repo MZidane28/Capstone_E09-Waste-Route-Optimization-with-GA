@@ -125,10 +125,10 @@ export const compareSolutions = async (req, res) => {
         nn: {
           summary : nnStats,
           daily_data: nnSolutions.map(sol => ({
-            day: sol.simulation_day,
-            distance: sol.total_distance,
-            emissions: sol.total_emissions,
-            trips: sol.number_of_trucks,
+            simulation_day: sol.simulation_day,
+            total_distance: sol.total_distance,
+            total_emissions: sol.total_emissions,
+            number_of_trucks: sol.number_of_trucks,
         }))
         },
         improvements: improvements
@@ -150,14 +150,14 @@ export const getSummary = async (req, res) => {
 
     const totalSolutions = await Solution.countDocuments();
     
-    const gaSolutions = await Solution.find({method: "GA"});
-    const nnSolutions = await Solution.find({method: "NN"});
+    const gaSolutions = await Solution.find({method: "ga"});
+    const nnSolutions = await Solution.find({method: "nn"});
 
     const gaTotalDistance = gaSolutions.reduce((sum, sol) => sum + sol.total_distance, 0);
     const nnTotalDistance = nnSolutions.reduce((sum, sol) => sum + sol.total_distance, 0);
 
-    const gaTotalEmissions = gaSolutions.reduce((sum, sol) => sum + sol.total_distance, 0);
-    const nnTotalEmissions = nnSolutions.reduce((sum, sol) => sum + sol.total_distance, 0);
+    const gaTotalEmissions = gaSolutions.reduce((sum, sol) => sum + sol.total_emissions, 0);
+    const nnTotalEmissions = nnSolutions.reduce((sum, sol) => sum + sol.total_emissions, 0);
 
     res.json({
       success: true,

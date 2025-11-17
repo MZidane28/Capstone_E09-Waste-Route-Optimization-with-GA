@@ -42,13 +42,24 @@ export async function initializeSimulation(clearHistory = false) {
 export async function updateBinFillLevels() {
     try {
         const bins = await Bin.find({});
+        let skippedCount = 0;
+        let updatedCount = 0;
 
         for (const bin of bins) {
+            // Skip real bins - they get updates from MQTT sensor
+            if (bin.is_real) {
+                console.log(`⏭️  Skipping real bin: ${bin.name} (${bin.bin_id}) - gets data from sensor`);
+                skippedCount++;
+                continue;
+            }
+
             bin.updateFill('ga');
             bin.updateFill('nn');
             await bin.save();
+            updatedCount++;
         }
 
+        console.log(`📊 Fill levels updated: ${updatedCount} simulated bins, ${skippedCount} real bins skipped`);
         return bins;
     } catch (error) {
         throw new Error(`Failed to update bin fill levels: ${error.message}`);
@@ -104,6 +115,33 @@ export async function runGAoptimization(day) {
 
         const gaResult = await optimizeWithGA(binsToCollect);
         
+        // VALIDATION: Ensure all routes start and end with 'depot'
+        const validatedRoutes = gaResult.routes.map(route => {
+            const routePath = route.route || [];
+            const startsWithDepot = routePath[0] === 'depot';
+            const endsWithDepot = routePath[routePath.length - 1] === 'depot';
+            
+            let fixedRoute = [...routePath];
+            
+            if (!startsWithDepot) {
+                console.warn(`⚠️ Route for truck ${route.truck_no} doesn't start with depot - adding it`);
+                fixedRoute = ['depot', ...fixedRoute];
+            }
+            if (!endsWithDepot) {
+                console.warn(`⚠️ Route for truck ${route.truck_no} doesn't end with depot - adding it`);
+                fixedRoute = [...fixedRoute, 'depot'];
+            }
+            
+            if (!startsWithDepot || !endsWithDepot) {
+                console.log(`✅ Fixed route for truck ${route.truck_no}:`, fixedRoute);
+            }
+            
+            return {
+                ...route,
+                route: fixedRoute
+            };
+        });
+        
         // Use findOneAndUpdate with upsert to avoid duplicate key error
         const newSolution = await Solution.findOneAndUpdate(
             { simulation_day: day, method: 'ga' },
@@ -115,7 +153,7 @@ export async function runGAoptimization(day) {
                 avg_utilization: gaResult.avg_utilization,
                 number_of_trucks: gaResult.number_of_trucks,
                 execution_time: gaResult.computation_time,
-                routes: gaResult.routes
+                routes: validatedRoutes  // Use validated routes with depot
             },
             { upsert: true, new: true }
         );

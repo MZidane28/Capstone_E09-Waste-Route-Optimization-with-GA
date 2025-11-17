@@ -3,17 +3,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotification } from '@/components/NotificationProvider';
 import { API_ENDPOINTS } from '@/lib/config';
+import { DEPOT } from '@/lib/mapUtils';
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
-import RandomButton from "@/components/RandomButton";
 import NavigationChunks from "@/components/NavigationChunks";
 
 export default function Simulasi() {
   const router = useRouter();
   const { addNotification } = useNotification();
   const [showRoutes, setShowRoutes] = useState(false);
-  const [randomizeFn, setRandomizeFn] = useState(null);
   const [collectionPoints, setCollectionPoints] = useState([]); // Store bins from database
   const [loading, setLoading] = useState(true); // Loading state for initial fetch
   const [mapData, setMapData] = useState({
@@ -23,9 +22,9 @@ export default function Simulasi() {
   });
   const [routeWaypoints, setRouteWaypoints] = useState([]);
   const [selectedTruckId, setSelectedTruckId] = useState(1); // Default to Truck 1 instead of "All Trucks"
-  const [generatedRoutes, setGeneratedRoutes] = useState([]); // Store routes from MapComponent
+  const [generatedRoutes, setGeneratedRoutes] = useState([]); // Store routes from backend
   const [isGeneratingRoutes, setIsGeneratingRoutes] = useState(false); // Loading state for route generation
-  const [isRandomizing, setIsRandomizing] = useState(false); // Loading state for randomization
+  const [hasGeneratedRoutes, setHasGeneratedRoutes] = useState(false); // Track if routes are ready to show
   const [trackingCreated, setTrackingCreated] = useState(false); // Track if assignments created
 
   // Fetch bins from database on mount
@@ -47,16 +46,22 @@ export default function Simulasi() {
         
         const bins = await response.json();
         
-        // Transform database bins and randomize fill levels
-        const points = bins.map(bin => {
-          const randomFillLevel = Math.floor(Math.random() * 100); // 0-100%
+        // Filter out real sensor bins - simulasi only uses simulated bins
+        const simulatedBins = bins.filter(bin => !bin.is_real);
+        
+        // Transform database bins - use actual fill levels from backend
+        const points = simulatedBins.map(bin => {
+          // Use current_fill_ga as the fill level
+          const fillLevel = Math.round((bin.current_fill_ga / bin.capacity) * 100);
           
           return {
             id: bin.bin_id,
             lat: bin.location.lat,
-            lng: bin.location.lon,
-            fillLevel: randomFillLevel,
-            name: bin.name
+            lng: bin.location.lon, // Transform lon to lng
+            fillLevel: fillLevel,
+            name: bin.name,
+            capacity: bin.capacity,
+            current_fill: bin.current_fill_ga
           };
         });
         
@@ -86,6 +91,7 @@ export default function Simulasi() {
   };
 
   fetchBins();
+  
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);  // Load saved routes from localStorage on mount
   useEffect(() => {
@@ -295,73 +301,211 @@ export default function Simulasi() {
     addNotification(message, type);
   };
   
-  const handleStart = () => {
-    console.log('🚀 Start button clicked');
-    console.log('   Current generatedRoutes:', generatedRoutes.length);
-    console.log('   Current showRoutes:', showRoutes);
+  const handleStart = async () => {
+    console.log('🚀 Start button clicked - Running simulation...');
     
     setIsGeneratingRoutes(true);
+    setHasGeneratedRoutes(false);
+    setShowRoutes(false); // Hide routes if currently showing
     setTrackingCreated(false); // Reset tracking state
-    // Simulate route generation delay
-    setTimeout(() => {
-      console.log('✅ Setting showRoutes to true');
-      setShowRoutes(true);
-      setIsGeneratingRoutes(false);
-    }, 800); // 800ms delay for visual feedback
-  };
-
-  const handleRandom = () => {
-    console.log('🎲 Randomizing fill levels...');
-    setIsRandomizing(true);
-    setShowRoutes(false); // Hide routes first
-    setSelectedTruckId(1); // Reset to Truck 1 (not "All Trucks")
-    setTrackingCreated(false); // Reset tracking state
-    setGeneratedRoutes([]); // Clear generated routes
     
-    // Clear saved routes from localStorage
-    localStorage.removeItem('simulasi_routes');
-    localStorage.setItem('simulasi_showRoutes', 'false');
-    
-    // Randomize fill levels for existing bins
-    if (collectionPoints.length > 0) {
-      const randomizedPoints = collectionPoints.map(point => ({
-        ...point,
-        fillLevel: Math.floor(Math.random() * 100) // New random fill level 0-100%
-      }));
-      
-      setCollectionPoints(randomizedPoints);
-      
-      const needsCollection = randomizedPoints.filter(point => point.fillLevel >= 80).length;
-      setMapData({
-        total: randomizedPoints.length,
-        needsCollection,
-        points: randomizedPoints
+    try {
+      // Call backend to run simulation (updates fill levels and generates routes)
+      const response = await fetch(API_ENDPOINTS.simulation.run, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
-      console.log(`✅ Randomized fill levels: ${needsCollection}/${randomizedPoints.length} bins need collection`);
-    } else if (randomizeFn) {
-      // Fallback to old random generation if no database bins
-      randomizeFn();
+      if (!response.ok) {
+        throw new Error('Failed to run simulation');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Simulation result:', result);
+      
+      if (!result.success || !result.data?.gaResult?.solution) {
+        throw new Error('Invalid simulation response');
+      }
+      
+      const { solution, binDetails } = result.data.gaResult;
+      
+      // Check if there are bins to collect
+      if (!solution.routes || solution.routes.length === 0 || solution.total_distance === 0) {
+        addNotification('ℹ️ No bins need collection at this time (all below 80%)', 'info');
+        setGeneratedRoutes([]);
+        setHasGeneratedRoutes(false);
+        
+        // Re-fetch bins to update UI with current fill levels
+        await refreshBins();
+        return;
+      }
+      
+      // Validate binDetails
+      if (!binDetails || typeof binDetails !== 'object') {
+        console.warn('⚠️ No binDetails in response, using empty object');
+      }
+      
+      const safeBinDetails = binDetails || {};
+      
+      // Transform backend routes to frontend format
+      const transformedRoutes = solution.routes.map((route, index) => {
+        // Build points array: depot -> bins -> depot
+        const points = route.route.map(binId => {
+          if (binId === 'depot') {
+            // Use DEPOT constant from mapUtils for consistency
+            return [DEPOT.lat, DEPOT.lng];
+          }
+          const binDetail = safeBinDetails[binId];
+          if (binDetail) {
+            return [binDetail.lat, binDetail.lng];
+          }
+          // Fallback: if binDetail not found, skip this point
+          console.warn(`⚠️ Bin detail not found for: ${binId}`);
+          return null;
+        }).filter(p => p !== null);
+        
+        // Get bin objects for this route (excluding depot)
+        const bins = route.route
+          .filter(binId => binId !== 'depot')
+          .map(binId => {
+            const binDetail = safeBinDetails[binId];
+            if (binDetail) {
+              return {
+                id: binId,
+                lat: binDetail.lat,
+                lng: binDetail.lng,
+                fillLevel: Math.round((binDetail.current_fill_ga / binDetail.capacity) * 100),
+                name: binDetail.name
+              };
+            }
+            return null;
+          })
+          .filter(b => b !== null);
+        
+        return {
+          id: route.truck_no,
+          name: `Truck ${route.truck_no}`,
+          bins: bins,
+          points: points,
+          binCount: bins.length,
+          totalDistance: route.distance,
+          totalTime: Math.round(route.distance / 30 * 60), // Estimate: 30 km/h
+          color: getRouteColor(index),
+          utilization: route.utilization,
+          load: route.load,
+          emissions: route.emissions
+        };
+      });
+      
+      console.log('📦 Routes generated:', transformedRoutes.length, 'trucks');
+      setGeneratedRoutes(transformedRoutes);
+      setHasGeneratedRoutes(true); // Mark routes as ready
+      setShowRoutes(true); // Auto-show routes after generation
+      setSelectedTruckId(1); // Auto-select first truck
+      
+      // Update mapData with bins that were collected
+      const collectedBins = safeBinDetails && Object.keys(safeBinDetails).length > 0
+        ? Object.keys(safeBinDetails).map(binId => {
+            const binDetail = safeBinDetails[binId];
+            return {
+              id: binId,
+              lat: binDetail.lat,
+              lng: binDetail.lng,
+              fillLevel: Math.round((binDetail.current_fill_ga / binDetail.capacity) * 100),
+              name: binDetail.name
+            };
+          })
+        : [];
+      
+      setMapData({
+        total: collectionPoints.length,
+        needsCollection: collectedBins.length,
+        points: collectionPoints
+      });
+      
+      addNotification(`✅ Routes generated! ${transformedRoutes.length} trucks assigned, ${collectedBins.length} bins to collect. Click "Show Routes" to view.`, 'success');
+      
+      // Re-fetch bins to update UI with emptied bins
+      await refreshBins();
+      
+    } catch (error) {
+      console.error('❌ Error running simulation:', error);
+      addNotification('Failed to run simulation. Please check backend server.', 'error');
+      setHasGeneratedRoutes(false);
+    } finally {
+      setIsGeneratingRoutes(false);
+    }
+  };
+  
+  // Helper function to refresh bins data from backend
+  const refreshBins = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.bins);
+      if (!response.ok) return;
+      
+      const bins = await response.json();
+      
+      // Filter out real sensor bins - simulasi only uses simulated bins
+      const simulatedBins = bins.filter(bin => !bin.is_real);
+      
+      const points = simulatedBins.map(bin => {
+        const fillLevel = Math.round((bin.current_fill_ga / bin.capacity) * 100);
+        return {
+          id: bin.bin_id,
+          lat: bin.location.lat,
+          lng: bin.location.lon,
+          fillLevel: fillLevel,
+          name: bin.name,
+          capacity: bin.capacity,
+          current_fill: bin.current_fill_ga
+        };
+      });
+      
+      setCollectionPoints(points);
+      const needsCollection = points.filter(point => point.fillLevel >= 80).length;
+      setMapData(prev => ({
+        ...prev,
+        total: points.length,
+        needsCollection,
+        points
+      }));
+      
+      console.log('✅ Bins refreshed from backend');
+    } catch (error) {
+      console.warn('Failed to refresh bins:', error);
+    }
+  };
+  
+  // Handler for Show Routes button
+  const handleShowRoutes = () => {
+    if (!hasGeneratedRoutes || generatedRoutes.length === 0) {
+      addNotification('⚠️ No routes available. Please run simulation first.', 'warning');
+      return;
     }
     
-    // Simulate randomization delay
-    setTimeout(() => {
-      setIsRandomizing(false);
-    }, 500); // 500ms delay for visual feedback
+    console.log('👁️ Showing routes...');
+    setShowRoutes(true);
+    setSelectedTruckId(1); // Reset to first truck
+  };
+  
+  // Handler for Hide Routes button
+  const handleHideRoutes = () => {
+    console.log('🙈 Hiding routes...');
+    setShowRoutes(false);
+  };
+  
+  // Helper function for route colors
+  const getRouteColor = (index) => {
+    const colors = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'];
+    return colors[index % colors.length];
   };
 
   const handleTruckSelect = (truckId) => {
     console.log('🚛 Truck selected:', truckId, 'Type:', typeof truckId);
     console.log('📋 Available routes:', generatedRoutes.map(r => ({ id: r.id, name: r.name })));
     setSelectedTruckId(truckId);
-  };
-
-  const handleRoutesGenerated = (routes) => {
-    console.log('📦 Routes generated:', routes.length, 'routes');
-    routes.forEach(route => {
-      console.log(`  - Route ${route.id}: ${route.name}, ${route.binCount} bins, ${route.points.length} waypoints`);
-    });
-    setGeneratedRoutes(routes);
   };
 
   const handleClearRoutes = async () => {
@@ -462,11 +606,9 @@ export default function Simulasi() {
         {/* Map Section */}
         <MapWrapper 
           showRoutes={showRoutes}
-          onRandomize={setRandomizeFn}
           onDataChange={setMapData}
           selectedTruckId={selectedTruckId}
           onTruckSelect={handleTruckSelect}
-          onRoutesGenerated={handleRoutesGenerated}
           savedRoutes={generatedRoutes}
           useRealData={collectionPoints.length > 0}
           collectionPoints={collectionPoints}
@@ -482,19 +624,28 @@ export default function Simulasi() {
                 </div>
               </div>
             ) : (
-              <StartButton onClick={handleStart} disabled={isRandomizing} />
+              <StartButton onClick={handleStart} disabled={false} />
             )}
             
-            {isRandomizing ? (
-              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
-                <div className="text-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-1"></div>
-                  <span className="text-[8px] text-black font-semibold">Randomizing...</span>
+            {/* Show/Hide Routes Button */}
+            <button
+              onClick={showRoutes ? handleHideRoutes : handleShowRoutes}
+              disabled={!hasGeneratedRoutes}
+              className={`w-28 h-28 rounded-full shadow-md border-2 border-black font-bold flex items-center justify-center flex-shrink-0 transition-all ${
+                !hasGeneratedRoutes
+                  ? 'bg-gray-300 cursor-not-allowed opacity-50'
+                  : showRoutes
+                  ? 'bg-yellow-500 hover:bg-yellow-600'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              }`}
+            >
+              <div className="text-center">
+                <div className="text-3xl mb-1">{showRoutes ? '🙈' : '👁️'}</div>
+                <div className="text-[10px] text-white font-semibold leading-tight">
+                  {showRoutes ? 'HIDE' : 'SHOW'}<br />ROUTES
                 </div>
               </div>
-            ) : (
-              <RandomButton onClick={handleRandom} disabled={isGeneratingRoutes} />
-            )}
+            </button>
           </div>
 
           {/* Route Details Section */}
@@ -548,11 +699,9 @@ export default function Simulasi() {
         {/* Map Section */}
         <MapWrapper 
           showRoutes={showRoutes}
-          onRandomize={setRandomizeFn}
           onDataChange={setMapData}
           selectedTruckId={selectedTruckId}
           onTruckSelect={handleTruckSelect}
-          onRoutesGenerated={handleRoutesGenerated}
           savedRoutes={generatedRoutes}
           useRealData={collectionPoints.length > 0}
           collectionPoints={collectionPoints}
@@ -569,19 +718,28 @@ export default function Simulasi() {
                 </div>
               </div>
             ) : (
-              <StartButton onClick={handleStart} disabled={isRandomizing} />
+              <StartButton onClick={handleStart} disabled={false} />
             )}
             
-            {isRandomizing ? (
-              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
-                <div className="text-center">
-                  <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                  <span className="text-xs text-black font-semibold">Randomizing...</span>
+            {/* Show/Hide Routes Button */}
+            <button
+              onClick={showRoutes ? handleHideRoutes : handleShowRoutes}
+              disabled={!hasGeneratedRoutes}
+              className={`w-28 h-28 rounded-full shadow-md border-2 border-black font-bold flex items-center justify-center flex-shrink-0 transition-all ${
+                !hasGeneratedRoutes
+                  ? 'bg-gray-300 cursor-not-allowed opacity-50'
+                  : showRoutes
+                  ? 'bg-yellow-500 hover:bg-yellow-600'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              }`}
+            >
+              <div className="text-center">
+                <div className="text-4xl mb-2">{showRoutes ? '🙈' : '👁️'}</div>
+                <div className="text-xs text-white font-semibold leading-tight">
+                  {showRoutes ? 'HIDE' : 'SHOW'}<br />ROUTES
                 </div>
               </div>
-            ) : (
-              <RandomButton onClick={handleRandom} disabled={isGeneratingRoutes} />
-            )}
+            </button>
           </div>
           <div className="bg-white rounded-lg shadow-md border-2 border-black flex-1">
             <RouteDetails details={routeDetails} />
