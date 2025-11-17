@@ -1,15 +1,17 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import Toast from './Toast';
 
 const NotificationContext = createContext(undefined);
+
+let notificationCounter = 0;
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
 
   const addNotification = useCallback((message, type = 'info', duration = 3000) => {
-    const id = Date.now();
+    const id = `${Date.now()}-${++notificationCounter}`;
     setNotifications(prev => [...prev, { id, message, type, duration }]);
   }, []);
 

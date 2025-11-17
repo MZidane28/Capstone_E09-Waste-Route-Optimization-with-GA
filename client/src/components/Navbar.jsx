@@ -1,45 +1,47 @@
 "use client"
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
-const navItems = [
-  {
-    href: "/",
-    label: "Beranda",
-    icon: "/HomeButton.svg",
-    activeIcon: "/HomeButtonFill.svg"
-  },
-  {
-    href: "/simulasi",
-    label: "Simulasi",
-    icon: "/Simulasi.svg",
-    activeIcon: "/SimulasiFill.svg"
-  },
-  {
-    href: "/tracking",
-    label: "Tracking",
-    icon: "/tracking.svg",
-    activeIcon: "/tracking fill.svg"
-  },
-  {
-    href: "/analitik",
-    label: "Analitik",
-    icon: "/Analitik.svg",
-    activeIcon: "/AnalitikFill.svg"
-  },
-  {
-    href: "/list",
-    label: "List",
-    icon: "/List.svg",
-    activeIcon: "/ListFill.svg"
-  }
-];
-
 const Navbar = () => {
   const pathname = usePathname();
+  
+  // Use useMemo to ensure navItems is consistent between server and client
+  const navItems = useMemo(() => [
+    {
+      href: "/",
+      label: "Beranda",
+      icon: "/HomeButton.svg",
+      activeIcon: "/HomeButtonFill.svg"
+    },
+    // Temporarily hide Simulasi page - functionality moved to Beranda
+    // {
+    //   href: "/simulasi",
+    //   label: "Simulasi",
+    //   icon: "/Simulasi.svg",
+    //   activeIcon: "/SimulasiFill.svg"
+    // },
+    {
+      href: "/tracking",
+      label: "Tracking",
+      icon: "/tracking.svg",
+      activeIcon: "/tracking fill.svg"
+    },
+    {
+      href: "/analitik",
+      label: "Analitik",
+      icon: "/Analitik.svg",
+      activeIcon: "/AnalitikFill.svg"
+    },
+    {
+      href: "/list",
+      label: "List",
+      icon: "/List.svg",
+      activeIcon: "/ListFill.svg"
+    }
+  ], []);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 w-full bg-white shadow-md rounded-tl-2xl rounded-tr-2xl border-3 sm:border-3 border-black sm:hidden">

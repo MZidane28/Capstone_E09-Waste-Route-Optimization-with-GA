@@ -215,6 +215,58 @@ const createNumberedIcon = (number, color) => {
   });
 };
 
+// Real sensor bin icon (with sensor indicator)
+const createRealBinIcon = (color) => {
+  return L.divIcon({
+    className: 'custom-real-bin-icon',
+    html: `
+      <div style="
+        position: relative;
+        width: 28px;
+        height: 28px;
+      ">
+        <div style="
+          background-color: ${color};
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          transition: transform 0.3s ease;
+          position: absolute;
+          top: 4px;
+          left: 4px;
+        "></div>
+        <div style="
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: linear-gradient(135deg, #10b981, #059669);
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          animation: pulse 2s infinite;
+        ">📡</div>
+      </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      </style>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+  });
+};
+
 export default function MapComponent({ 
   onRandomize, 
   showRoutes = false, 
@@ -337,25 +389,30 @@ export default function MapComponent({
 
     // Add collection points
     collectionPoints.forEach(point => {
-      console.log(`🏷️ Bin ${point.id}: fillLevel=${point.fillLevel}%`);
+      console.log(`🏷️ Bin ${point.id}: fillLevel=${point.fillLevel}% ${point.isReal ? '📡 REAL SENSOR' : ''}`);
       
-      // Determine marker color based on fill level
+      // Determine marker color based on fill level (matching list page colors)
       let color;
       if (point.fillLevel >= 80) {
-        color = '#ef4444'; // Red for bins that need collection
+        color = '#ef4444'; // Red for bins that need collection (≥80%)
+      } else if (point.fillLevel >= 60) {
+        color = '#eab308'; // Yellow/amber for medium fill (60-79%)
       } else {
-        color = '#3b82f6'; // Blue for bins under threshold
+        color = '#3b82f6'; // Blue for bins under threshold (<60%)
       }
 
+      // Use different icon for real sensor bins
+      const binIcon = point.isReal ? createRealBinIcon(color) : createIcon(color);
+
       const marker = L.marker([point.lat, point.lng], {
-        icon: createIcon(color)
+        icon: binIcon
       })
         .addTo(mapRef.current)
         .bindPopup(`
           <div class="text-black">
-            <b>ID: ${point.id}</b><br>
+            <b>ID: ${point.id}</b>${point.isReal ? ' <span style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">📡 SENSOR</span>' : ''}<br>
             Fill Level: ${point.fillLevel}%<br>
-            Status: ${point.fillLevel >= 80 ? 'Needs Collection' : 'OK'}
+            Status: ${point.fillLevel >= 80 ? 'Needs Collection' : point.fillLevel >= 60 ? 'Medium' : 'OK'}${point.isReal ? '<br><span style="color: #059669; font-size: 11px;">Real-time data from IoT sensor</span>' : ''}
           </div>
         `);
       markersRef.current.push(marker);
@@ -391,7 +448,7 @@ export default function MapComponent({
         return;
       }
 
-      // Clear existing routes with null check
+      // Clear existing routes with improved null check and error handling
       routesRef.current.forEach(route => {
         if (route && route.remove) {
           try {
@@ -404,7 +461,7 @@ export default function MapComponent({
           }
         }
       });
-    routesRef.current = [];
+      routesRef.current = [];
     
     // Clear existing route markers (numbered stops)
     routeMarkersRef.current.forEach(marker => {
@@ -453,72 +510,19 @@ export default function MapComponent({
           </div>
         `);
       
-      // Use savedRoutes if available, otherwise generate new routes
+      // Use savedRoutes if available, otherwise generate mock routes for testing
       let routes;
       if (savedRoutes && savedRoutes.length > 0) {
-        console.log('📦 Using saved routes from localStorage');
+        console.log('📦 Using saved routes from parent component');
         routes = savedRoutes;
       } else {
-        console.log('🧬 Generating routes with Genetic Algorithm...');
+        console.log('⚠️ No saved routes available - using mock data for preview');
+        // Generate mock routes only for testing/preview
+        routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
         
-        // Both Beranda and Simulasi use simulation endpoint
-        // Backend will auto-increment day, update fill levels, and optimize routes
-        console.log(`📍 Calling simulation endpoint - will auto-increment current_day`);
-        
-        // Call simulation API endpoint
-        try {
-          console.log('📡 Fetching:', API_ENDPOINTS.simulation.run);
-          
-          const response = await fetch(API_ENDPOINTS.simulation.run, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            // No body needed - backend handles everything automatically
-          });
-          
-          console.log('📥 Response status:', response.status, response.statusText);
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ API Error:', errorText);
-            throw new Error(`Simulation API failed: ${response.status} ${errorText}`);
-          }
-          
-          const result = await response.json();
-          
-          // Parse simulation response: { success, data: { day, ga, nn } }
-          console.log('📦 Simulation response:', result);
-          
-          if (result.success && result.data) {
-            // Backend returns { day, ga: {...}, nn: {...} }
-            const gaData = result.data.ga;
-            
-            if (gaData && gaData.routes) {
-              routes = gaData.routes;
-              
-              console.log(`✅ Simulation complete: Day ${result.data.day}`);
-              console.log(`   Routes: ${routes.length}, Distance: ${gaData.total_distance?.toFixed(2)} km`);
-              console.log(`   Bins collected: ${gaData.total_bins || 'N/A'}`);
-              
-              // Send routes to parent component
-              if (onRoutesGenerated) {
-                onRoutesGenerated(routes);
-              }
-            } else {
-              console.warn('⚠️ No routes in GA result');
-              throw new Error('No routes in simulation response');
-            }
-          } else {
-            throw new Error('Invalid simulation response');
-          }
-        } catch (error) {
-          console.warn('⚠️ GA API unavailable, falling back to mock routes');
-          routes = generateMockRoutes(SOURCE_POINTS, collectionPoints);
-          
-          if (onRoutesGenerated) {
-            onRoutesGenerated(routes);
-          }
+        // Notify parent that we generated mock routes
+        if (onRoutesGenerated) {
+          onRoutesGenerated(routes);
         }
       }
       
@@ -535,15 +539,132 @@ export default function MapComponent({
 
       routesToShow.forEach(route => {
         if (route.points.length > 1) { // Only show routes with collection points
+          // Safety check: ensure map is still mounted
+          if (!mapRef.current) {
+            console.warn('⚠️ Map is not mounted, skipping route generation');
+            return;
+          }
+          
           const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
           
           // All trucks use the same depot (DEPOT constant)
           const depotLatLng = L.latLng(DEPOT.lat, DEPOT.lng);
           
-          // Log route generation
+          // Log route generation with detailed waypoint info
           console.log(`🗺️ Generating route for ${route.name} with ${route.binCount} bins`);
           console.log(`   Depot: [${DEPOT.lat}, ${DEPOT.lng}] (shared depot)`);
           console.log(`   Total waypoints: ${waypoints.length} (depot → bins → depot)`);
+          console.log(`   First waypoint: [${waypoints[0].lat.toFixed(5)}, ${waypoints[0].lng.toFixed(5)}]`);
+          console.log(`   Last waypoint: [${waypoints[waypoints.length-1].lat.toFixed(5)}, ${waypoints[waypoints.length-1].lng.toFixed(5)}]`);
+          console.log(`   Is first = depot? ${waypoints[0].lat === DEPOT.lat && waypoints[0].lng === DEPOT.lng}`);
+          console.log(`   Is last = depot? ${waypoints[waypoints.length-1].lat === DEPOT.lat && waypoints[waypoints.length-1].lng === DEPOT.lng}`);
+          
+          // Try OSRM routing with automatic fallback to direct routes
+          const USE_OSRM_ROUTING = true; // Set to false to always use direct routes
+          let routingFailed = false;
+          
+          // Helper function to create direct route (used as fallback)
+          const createDirectRoute = (isDirect = false) => {
+            const points = waypoints.map(wp => [wp.lat, wp.lng]);
+            const polyline = L.polyline(points, {
+              color: route.color,
+              weight: 6,
+              opacity: 0.7,
+              dashArray: isDirect ? '5, 5' : undefined // Dashed only if direct fallback
+            }).addTo(mapRef.current);
+            
+            routesRef.current.push(polyline);
+            
+            // Add arrows
+            const arrowDecorator = L.polylineDecorator(polyline, {
+              patterns: [
+                {
+                  offset: '5%',
+                  repeat: 100,
+                  symbol: L.Symbol.arrowHead({
+                    pixelSize: 12,
+                    polygon: false,
+                    pathOptions: {
+                      stroke: true,
+                      weight: 3,
+                      color: route.color,
+                      opacity: 0.8,
+                      fillOpacity: 0
+                    }
+                  })
+                }
+              ]
+            });
+            
+            if (mapRef.current) {
+              arrowDecorator.addTo(mapRef.current);
+              routesRef.current.push(arrowDecorator);
+            }
+            
+            // Add popup
+            const distance = calculateApproximateDistance(points);
+            const time = calculateApproximateTime(points);
+            
+            polyline.bindPopup(`
+              <div class="route-popup">
+                <div class="route-popup-header">${route.name}</div>
+                <div class="route-popup-content">
+                  <div class="route-popup-stat">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C22.5 3.839 21.66 3 20.625 3H3.375z" />
+                      <path fill-rule="evenodd" d="M3.087 9l.54 9.176A3 3 0 006.62 21h10.757a3 3 0 002.995-2.824L20.913 9H3.087zm6.163 3.75A.75.75 0 0110 12h4a.75.75 0 010 1.5h-4a.75.75 0 01-.75-.75z" clip-rule="evenodd" />
+                    </svg>
+                    <span>${route.binCount} bins to collect</span>
+                  </div>
+                  <div class="route-popup-stat">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                    <span>~${(distance / 1000).toFixed(1)} km${isDirect ? ' (direct)' : ''}</span>
+                  </div>
+                  <div class="route-popup-stat">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd" />
+                    </svg>
+                    <span>~${(time / 60).toFixed(0)} minutes</span>
+                  </div>
+                </div>
+              </div>
+            `);
+            
+            // Add numbered markers
+            for (let i = 1; i < waypoints.length - 1; i++) {
+              const stopNumber = i;
+              const waypointCoords = route.points[i];
+              
+              if (!mapRef.current) {
+                console.warn('⚠️ Map was unmounted before numbered markers could be added');
+                return;
+              }
+              
+              const markerPosition = L.latLng(waypointCoords[0], waypointCoords[1]);
+              
+              const numberedMarker = L.marker(markerPosition, {
+                icon: createNumberedIcon(stopNumber, route.color),
+                zIndexOffset: 1000
+              })
+                .addTo(mapRef.current)
+                .bindPopup(`
+                  <div style="padding: 8px;">
+                    <div style="font-weight: bold; color: ${route.color}; margin-bottom: 4px;">Stop #${stopNumber}</div>
+                    <div style="color: #4b5563; font-size: 14px;">${route.name}</div>
+                    <div style="color: #6b7280; font-size: 12px; margin-top: 4px;">Bin Location</div>
+                  </div>
+                `);
+              
+              routeMarkersRef.current.push(numberedMarker);
+            }
+            
+            console.log(`✅ ${isDirect ? 'Direct' : 'Road'} route created for ${route.name}`);
+          };
+          
+          if (USE_OSRM_ROUTING) {
+          // Try OSRM routing (may show network errors in console)
           
           // Create routing control with OSRM (with better configuration)
           const routingControl = L.Routing.control({
@@ -551,7 +672,7 @@ export default function MapComponent({
             router: L.Routing.osrmv1({
               serviceUrl: 'https://router.project-osrm.org/route/v1',
               profile: 'car', // Use 'car' instead of 'driving' for better compatibility
-              timeout: 10000, // Increase timeout to 10 seconds
+              timeout: 5000, // Reduce timeout to 5 seconds for faster fallback
               suppressDemoServerWarning: true,
               // Add request parameters for better routing
               routingOptions: {
@@ -559,7 +680,9 @@ export default function MapComponent({
                 steps: true,
                 geometries: 'geojson',
                 overview: 'full'
-              }
+              },
+              // Suppress fetch errors
+              useHints: false
             }),
             lineOptions: {
               styles: [
@@ -578,11 +701,20 @@ export default function MapComponent({
             createMarker: () => null, // Don't create markers for waypoints
             
             // SUPPRESS DEFAULT ERROR HANDLER
-            errorHandler: function() {
-              // Custom error handler that does nothing (suppress console errors)
-              // Our 'routingerror' event handler below will handle errors gracefully
+            errorHandler: function(error) {
+              // Completely suppress OSRM errors - fallback handler will take care of it
+              // Do not log anything to console
+              return; // Silent suppression
             }
-          }).addTo(mapRef.current);
+          });
+          
+          // Safety check before adding to map
+          if (!mapRef.current) {
+            console.warn('⚠️ Map was unmounted before routing control could be added');
+            return;
+          }
+          
+          routingControl.addTo(mapRef.current);
 
           // Add popup and arrows to the route line
           routingControl.on('routesfound', function(e) {
@@ -614,30 +746,34 @@ export default function MapComponent({
                   })
                 }
               ]
-            }).addTo(mapRef.current);
+            });
             
-            // Store decorator for cleanup
-            routesRef.current.push(arrowDecorator);
+            // Safety check before adding to map
+            if (mapRef.current) {
+              arrowDecorator.addTo(mapRef.current);
+              // Store decorator for cleanup
+              routesRef.current.push(arrowDecorator);
+            }
             
             // Add numbered markers for collection points AFTER route is created
             // Route structure: [depot, bin1, bin2, ..., binN, depot]
             // So we want markers for index 1 to length-2 (the bins only)
             console.log(`   Creating ${waypoints.length - 2} numbered markers for bins`);
-            console.log(`   Route waypoints:`, waypoints.map((wp, idx) => `${idx}: [${wp.lat.toFixed(5)}, ${wp.lng.toFixed(5)}]`));
             
             for (let i = 1; i < waypoints.length - 1; i++) {
-              const waypointCoords = route.points[i];
-              const waypointLatLng = waypoints[i];
               const stopNumber = i;
+              // Use waypoints directly (from route.points) which has correct coordinates
+              const waypointLatLng = waypoints[i];
               
-              console.log(`   📍 Creating Marker #${stopNumber}:`);
-              console.log(`      From route.points: [${waypointCoords[0].toFixed(5)}, ${waypointCoords[1].toFixed(5)}]`);
-              console.log(`      From waypoints: [${waypointLatLng.lat.toFixed(5)}, ${waypointLatLng.lng.toFixed(5)}]`);
+              console.log(`   📍 Marker #${stopNumber}: [${waypointLatLng.lat.toFixed(5)}, ${waypointLatLng.lng.toFixed(5)}]`);
               
-              // Use explicit L.latLng to ensure proper coordinate object
-              const markerPosition = L.latLng(waypointCoords[0], waypointCoords[1]);
+              // Safety check before creating marker
+              if (!mapRef.current) {
+                console.warn('⚠️ Map was unmounted before numbered markers could be added');
+                return;
+              }
               
-              const numberedMarker = L.marker(markerPosition, {
+              const numberedMarker = L.marker(waypointLatLng, {
                 icon: createNumberedIcon(stopNumber, route.color),
                 zIndexOffset: 1000 // High z-index to appear on top
               })
@@ -647,11 +783,11 @@ export default function MapComponent({
                     <div style="font-weight: bold; color: ${route.color}; margin-bottom: 4px;">Collection Stop #${stopNumber}</div>
                     <div style="color: #4b5563; font-size: 14px;">${route.name}</div>
                     <div style="color: #6b7280; font-size: 12px; margin-top: 4px;">Bin Location</div>
-                    <div style="color: #9ca3af; font-size: 11px; margin-top: 2px;">Lat: ${waypointCoords[0].toFixed(5)}, Lng: ${waypointCoords[1].toFixed(5)}</div>
+                    <div style="color: #9ca3af; font-size: 11px; margin-top: 2px;">Lat: ${waypointLatLng.lat.toFixed(5)}, Lng: ${waypointLatLng.lng.toFixed(5)}</div>
                   </div>
                 `);
               
-              console.log(`      ✅ Marker created at:`, numberedMarker.getLatLng());
+              console.log(`      ✅ Marker created successfully`);
               routeMarkersRef.current.push(numberedMarker);
             }
             console.log(`   ✅ Created ${waypoints.length - 2} numbered markers`);
@@ -694,124 +830,67 @@ export default function MapComponent({
 
           // Add error handling with fallback to straight-line route
           routingControl.on('routingerror', function(e) {
-            // Suppress error logging to console (we handle it gracefully)
-            // Use console.debug for debugging only
-            if (process.env.NODE_ENV === 'development') {
-              console.debug('ℹ️ OSRM routing service unavailable for', route.name, '- using fallback');
-            }
+            console.log(`⚠️ OSRM unavailable for ${route.name}, using direct route fallback`);
+            routingFailed = true;
             
-            // Check if map still exists before creating fallback
-            if (!mapRef.current || !mapRef.current._loaded) {
-              return;
-            }
-            
-            try {
-              // Create a fallback straight-line route
-              const points = waypoints.map(wp => [wp.lat, wp.lng]);
-              const polyline = L.polyline(points, {
-                color: route.color,
-                weight: 6,
-                opacity: 0.7,
-                dashArray: '10, 5'
-              }).addTo(mapRef.current);
-              
-              // Add arrows to fallback route
-              const arrowDecorator = L.polylineDecorator(polyline, {
-              patterns: [
-                {
-                  offset: '5%',
-                  repeat: 100,
-                  symbol: L.Symbol.arrowHead({
-                    pixelSize: 12,
-                    polygon: false,
-                    pathOptions: {
-                      stroke: true,
-                      weight: 3,
-                      color: route.color,
-                      opacity: 0.8,
-                      fillOpacity: 0
-                    }
-                  })
-                }
-              ]
-            }).addTo(mapRef.current);
-            
-            const distance = calculateApproximateDistance(points);
-            const time = calculateApproximateTime(points);
-            
-            
-            polyline.bindPopup(`
-              <div class="route-popup">
-                <div class="route-popup-header">${route.name}</div>
-                <div class="route-popup-content">
-                  <div class="route-popup-stat">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C22.5 3.839 21.66 3 20.625 3H3.375z" />
-                      <path fill-rule="evenodd" d="M3.087 9l.54 9.176A3 3 0 006.62 21h10.757a3 3 0 002.995-2.824L20.913 9H3.087zm6.163 3.75A.75.75 0 0110 12h4a.75.75 0 010 1.5h-4a.75.75 0 01-.75-.75z" clip-rule="evenodd" />
-                    </svg>
-                    <span>${route.binCount} bins to collect</span>
-                  </div>
-                  <div class="route-popup-stat">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-                    </svg>
-                    <span>${(distance / 1000).toFixed(1)} km (approximate)</span>
-                  </div>
-                  <div class="route-popup-stat">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd" />
-                    </svg>
-                    <span>${Math.round(time / 60)} minutes (approximate)</span>
-                  </div>
-                  <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
-                    ⚠️ Showing approximate straight-line route
-                  </div>
-                </div>
-              </div>
-            `);
-            
-            routesRef.current.push({ remove: () => {
+            // Remove the failed routing control
+            if (mapRef.current && routingControl) {
               try {
-                if (polyline && polyline.remove) polyline.remove();
-                if (arrowDecorator && arrowDecorator.remove) arrowDecorator.remove();
-              } catch (error) {
-                console.warn('Error removing fallback route:', error);
+                mapRef.current.removeControl(routingControl);
+              } catch (err) {
+                // Ignore removal errors
               }
-            } });
-            } catch (fallbackError) {
-              // Silently fail if map is no longer available
-              if (process.env.NODE_ENV === 'development') {
-                console.debug('Failed to create fallback route:', fallbackError.message);
-              }
+            }
+            
+            // Create direct route as fallback
+            if (mapRef.current && mapRef.current._loaded) {
+              createDirectRoute(true); // true = isDirect fallback
             }
           });
-
-          // Store the routing control for cleanup with safe wrapper
-          routesRef.current.push({
-            remove: () => {
+          
+          // Store routing control for cleanup with safe wrapper
+          const safeRoutingControl = {
+            _control: routingControl,
+            _map: mapRef.current,
+            remove: function() {
               try {
-                // Check if map still exists and routing control is valid
-                if (routingControl && mapRef.current && mapRef.current.hasLayer) {
-                  // Remove event listeners first
-                  routingControl.off('routesfound');
-                  routingControl.off('routingerror');
-                  
-                  // Safely remove from map
-                  if (typeof routingControl.remove === 'function') {
-                    routingControl.remove();
-                  } else if (routingControl._map) {
-                    // Fallback: manually remove from map
-                    routingControl._map.removeControl(routingControl);
+                // Check if control and map still exist
+                if (!this._control || !this._map) {
+                  return;
+                }
+                
+                // Remove event listeners first
+                if (this._control.off) {
+                  this._control.off('routesfound');
+                  this._control.off('routingerror');
+                }
+                
+                // Check if control is still attached to map
+                if (this._map.hasLayer && this._map.hasLayer(this._control)) {
+                  // Try to remove using Leaflet's removeControl
+                  if (this._map.removeControl) {
+                    this._map.removeControl(this._control);
                   }
+                } else if (this._control.remove && typeof this._control.remove === 'function') {
+                  // Try control's own remove method
+                  this._control.remove();
                 }
               } catch (error) {
-                // Silently ignore cleanup errors - routing control may be already removed
+                // Silently ignore - map might be unmounting
                 if (process.env.NODE_ENV === 'development') {
-                  console.debug('Routing control cleanup (expected):', error.message);
+                  console.debug('Routing control cleanup (expected during unmount):', error.message);
                 }
               }
             }
-          });
+          };
+          
+          routesRef.current.push(safeRoutingControl);
+          
+          } else {
+            // USE_OSRM_ROUTING is false, use direct routes
+            createDirectRoute(false);
+          }
+          // End of routing section
         } // close if (route.points.length > 1)
       }); // close routesToShow.forEach
     } else { // close if (showRoutes)
@@ -830,22 +909,28 @@ export default function MapComponent({
       
       // Re-add all markers (bins and trucks)
       collectionPoints.forEach(point => {
+        // Determine marker color based on fill level (matching list page colors)
         let color;
         if (point.fillLevel >= 80) {
-          color = '#ef4444'; // Red for bins that need collection
+          color = '#ef4444'; // Red for bins that need collection (≥80%)
+        } else if (point.fillLevel >= 60) {
+          color = '#eab308'; // Yellow/amber for medium fill (60-79%)
         } else {
-          color = '#3b82f6'; // Blue for bins under threshold
+          color = '#3b82f6'; // Blue for bins under threshold (<60%)
         }
 
+        // Use different icon for real sensor bins
+        const binIcon = point.isReal ? createRealBinIcon(color) : createIcon(color);
+
         const marker = L.marker([point.lat, point.lng], {
-          icon: createIcon(color)
+          icon: binIcon
         })
           .addTo(mapRef.current)
           .bindPopup(`
             <div class="text-black">
-              <b>ID: ${point.id}</b><br>
+              <b>ID: ${point.id}</b>${point.isReal ? ' <span style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">📡 SENSOR</span>' : ''}<br>
               Fill Level: ${point.fillLevel}%<br>
-              Status: ${point.fillLevel >= 80 ? 'Needs Collection' : 'OK'}
+              Status: ${point.fillLevel >= 80 ? 'Needs Collection' : point.fillLevel >= 60 ? 'Medium' : 'OK'}${point.isReal ? '<br><span style="color: #059669; font-size: 11px;">Real-time data from IoT sensor</span>' : ''}
             </div>
           `);
         markersRef.current.push(marker);
@@ -872,6 +957,34 @@ export default function MapComponent({
     };
     
     generateAndDisplayRoutes();
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      // Clear routes when component unmounts or dependencies change
+      routesRef.current.forEach(route => {
+        if (route && route.remove) {
+          try {
+            route.remove();
+          } catch (error) {
+            // Silently ignore cleanup errors
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('Route cleanup error (expected):', error.message);
+            }
+          }
+        }
+      });
+      
+      // Clear route markers
+      routeMarkersRef.current.forEach(marker => {
+        if (marker && marker.remove) {
+          try {
+            marker.remove();
+          } catch (error) {
+            // Silently ignore
+          }
+        }
+      });
+    };
   }, [showRoutes, collectionPoints, selectedTruckId, savedRoutes]);
 
   // Define randomize function
