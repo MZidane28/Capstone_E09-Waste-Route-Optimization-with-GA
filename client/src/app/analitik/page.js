@@ -116,9 +116,17 @@ export default function Analitik() {
   }
 
   const weeklyData = prepareWeeklyData(ga.daily_data, nn.daily_data, days);
-  const emissionReduced = Math.abs(improvements.emissions_improvement_percentage).toFixed(1);
-  const distanceSaved = Math.abs(improvements.distance_saved_km).toFixed(0);
-  const utilizationGA = ((ga.summary.total_distance / nn.summary.total_distance) * 100).toFixed(0);
+  const emissionReduced = improvements?.emissions_improvement_percentage 
+    ? Math.abs(improvements.emissions_improvement_percentage).toFixed(1)
+    : '0.0';
+
+  const distanceSaved = improvements?.distance_saved_km
+    ? Math.abs(improvements.distance_saved_km).toFixed(0)
+    : '0';
+
+  const utilizationGA = (ga?.summary?.total_distance && nn?.summary?.total_distance)
+    ? ((ga.summary.total_distance / nn.summary.total_distance) * 100).toFixed(0)
+    : '0';
 
   return (
     <div className="py-2 px-8 space-y-4 justify-between">
