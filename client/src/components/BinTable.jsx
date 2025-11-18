@@ -35,8 +35,9 @@ export default function BinTable() {
         
         // Transform database bins to table format
         const transformedBins = data.map(bin => {
-          const fillLevel = bin.current_fill_ga || bin.fill_rate || 0;
-          const capacity = bin.capacity || 10;
+          // Use current_fill_ga directly from database
+          const fillLevel = bin.current_fill_ga ?? 0;
+          const capacity = bin.capacity || 100;
           const fillPercentage = Math.round((fillLevel / capacity) * 100);
           
           return {
