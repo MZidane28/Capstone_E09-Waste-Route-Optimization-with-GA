@@ -15,11 +15,11 @@ export default function TruckStatusCard({ truck, onSelect, isSelected }) {
   const getStatusText = (status) => {
     switch (status) {
       case 'active':
-        return '🚛 Sedang Berjalan';
+        return 'Sedang Berjalan';
       case 'completed':
-        return '✅ Selesai';
+        return 'Selesai';
       case 'idle':
-        return '⏸️ Idle';
+        return 'Idle';
       default:
         return 'Unknown';
     }
@@ -102,7 +102,7 @@ export default function TruckStatusCard({ truck, onSelect, isSelected }) {
           onClick={(e) => e.stopPropagation()} // Prevent card selection when clicking link
           className="block w-full text-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
         >
-          📱 Open Driver Interface
+          Open Driver Interface
         </a>
       </div>
 

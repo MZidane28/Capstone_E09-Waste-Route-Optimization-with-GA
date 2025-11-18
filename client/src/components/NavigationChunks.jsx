@@ -82,9 +82,7 @@ export default function NavigationChunks({ waypoints, truckId }) {
           className="w-full block text-center px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-md border-2 border-black"
         >
           <div className="flex items-center justify-center gap-2">
-            <span className="text-xl">🗺️</span>
             <span>Navigate Full Route in Google Maps</span>
-            <span className="text-xl">→</span>
           </div>
           <div className="text-xs mt-1 opacity-90">
             {waypoints.length} waypoints • Optimized route
@@ -116,12 +114,12 @@ export default function NavigationChunks({ waypoints, truckId }) {
               <div className="flex-1">
                 <div className="font-semibold text-black">
                   {isDepot 
-                    ? (absoluteIndex === 0 ? '🚀 Start: Depot' : '🏁 Finish: Depot')
-                    : `🗑️ Bin ${absoluteIndex}`
+                    ? (absoluteIndex === 0 ? 'Start: Depot' : 'Finish: Depot')
+                    : `Bin ${absoluteIndex}`
                   }
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  📍 {lat?.toFixed(6)}, {lng?.toFixed(6)}
+                  {lat?.toFixed(6)}, {lng?.toFixed(6)}
                 </div>
               </div>
 
@@ -138,7 +136,6 @@ export default function NavigationChunks({ waypoints, truckId }) {
                   rel="noopener noreferrer"
                   className="flex-shrink-0 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
                 >
-                  <span>🧭</span>
                   <span>Next</span>
                 </a>
               )}
@@ -146,7 +143,6 @@ export default function NavigationChunks({ waypoints, truckId }) {
               {/* Last waypoint - already at depot */}
               {absoluteIndex === waypoints.length - 1 && (
                 <div className="flex-shrink-0 px-3 py-2 bg-gray-400 text-white text-sm rounded-lg flex items-center gap-1">
-                  <span>✅</span>
                   <span>Done</span>
                 </div>
               )}

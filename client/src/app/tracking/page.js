@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '@/components/NotificationProvider';
 import { API_ENDPOINTS } from '@/lib/config';
 import { exportCheckInReport, exportAllTrucksReport, exportRouteSummary, calculateRouteAnalytics } from '@/lib/exportUtils';
@@ -12,15 +12,20 @@ export default function TrackingPage() {
   const [trucks, setTrucks] = useState([]);
   const [selectedTruck, setSelectedTruck] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [previousCheckIns, setPreviousCheckIns] = useState({});
+  const [lastUpdate, setLastUpdate] = useState(null);
 
-  const fetchTrucksStatus = async () => {
+  const fetchTrucksStatus = useCallback(async (showNotification = false) => {
     try {
+      if (showNotification) setRefreshing(true);
+      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
       const response = await fetch(API_ENDPOINTS.tracking.trucks, {
-        signal: controller.signal
+        signal: controller.signal,
+        cache: 'no-store' // Prevent caching for real-time data
       });
       
       clearTimeout(timeoutId);
@@ -43,9 +48,16 @@ export default function TrackingPage() {
       
       setTrucks(sortedTrucks);
       setLoading(false);
+      setLastUpdate(new Date());
+      
+      if (showNotification) {
+        addNotification('✅ Data refreshed', 'success', 2000);
+        setRefreshing(false);
+      }
     } catch (error) {
       // Silently handle server unavailable - only show notification once
       setLoading(false);
+      setRefreshing(false);
       
       if (trucks.length === 0 && (error.name === 'AbortError' || error.message === 'Failed to fetch')) {
         addNotification('⚠️ Backend server offline. Start server to enable tracking.', 'warning');
@@ -53,15 +65,14 @@ export default function TrackingPage() {
         console.warn('Tracking fetch error:', error.message);
       }
     }
-  };
+  }, [addNotification, trucks.length]);
 
   useEffect(() => {
     fetchTrucksStatus();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchTrucksStatus, 30000);
+    // Refresh every 5 seconds for real-time updates (increased from 30s)
+    const interval = setInterval(() => fetchTrucksStatus(), 5000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchTrucksStatus]);
 
   // Monitor for new check-ins
   useEffect(() => {
@@ -72,7 +83,7 @@ export default function TrackingPage() {
       if (currentCount > prevCount) {
         const latestCheckIn = truck.checkIns[currentCount - 1];
         addNotification(
-          `🚛 ${truck.name} checked in at ${latestCheckIn.binName}`,
+          `${truck.name} checked in at ${latestCheckIn.binName}`,
           'success',
           4000
         );
@@ -131,14 +142,37 @@ export default function TrackingPage() {
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">
               Live Tracking
             </h1>
+            {lastUpdate && (
+              <p className="text-sm text-gray-500">
+                Last update: {lastUpdate.toLocaleTimeString('id-ID')} • Auto-refresh every 5s
+              </p>
+            )}
           </div>
-          <button
-            onClick={handleExportAll}
-            className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 border-2 border-black shadow-md"
-          >
-            <span>📥</span>
-            <span>Export All Reports</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => fetchTrucksStatus(true)}
+              disabled={refreshing}
+              className={`bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 border-2 border-black shadow-md ${refreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                strokeWidth={2} 
+                stroke="currentColor" 
+                className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
+            <button
+              onClick={handleExportAll}
+              className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 border-2 border-black shadow-md"
+            >
+              <span>Export All</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Summary */}
@@ -200,14 +234,14 @@ export default function TrackingPage() {
                   onClick={() => handleExportTruck(selectedTruck)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"
                 >
-                  <span>📥</span>
+                  <span></span>
                   <span>Check-ins</span>
                 </button>
                 <button
                   onClick={() => handleExportSummary(selectedTruck)}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"
                 >
-                  <span>📊</span>
+                  <span></span>
                   <span>Summary</span>
                 </button>
                 <button

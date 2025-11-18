@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotification } from '@/components/NotificationProvider';
 import { API_ENDPOINTS } from '@/lib/config';
+import { DEPOT } from '@/lib/mapUtils'; // Import DEPOT constant
 import MapWrapper from "@/components/MapWrapper";
 import RouteDetails from "@/components/RouteDetails";
 import StartButton from "@/components/StartButton";
@@ -46,40 +47,42 @@ export default function Home() {
         const bins = await response.json();
         
         // Transform database bins to map format
-        // Database schema: { bin_id, name, location: { lat, lon }, current_fill_ga, capacity, fill_rate }
+        // Database schema: { bin_id, name, location: { lat, lon }, current_fill_ga, capacity, fill_rate, is_real }
         const points = bins.map(bin => {
           // Try current_fill_ga first, fallback to fill_rate, then default to 0
           const currentFill = bin.current_fill_ga || bin.fill_rate || 0;
           const capacity = bin.capacity || 100;
           const fillPercentage = Math.round((currentFill / capacity) * 100);
           
-          console.log(`🗑️ Bin ${bin.bin_id}: ${bin.name} - Fill: ${currentFill}/${capacity} = ${fillPercentage}%`);
+          console.log(`Bin ${bin.bin_id}: ${bin.name} - Fill: ${currentFill}/${capacity} = ${fillPercentage}% ${bin.is_real ? '📡 (REAL SENSOR)' : ''}`);
           
           return {
             id: bin.bin_id,
             lat: bin.location.lat,
             lng: bin.location.lon,
             fillLevel: fillPercentage,
-            name: bin.name
+            name: bin.name,
+            isReal: bin.is_real || false // Mark real bins
           };
         });
         
         setCollectionPoints(points);
         
         const needsCollection = points.filter(point => point.fillLevel >= 80).length;
+        const realBinCount = points.filter(point => point.isReal).length;
         setMapData({
           total: points.length,
           needsCollection,
           points
         });
         
-        console.log(`✅ Loaded ${points.length} bins from database`);
-        console.log(`📊 Bins needing collection: ${needsCollection}`);
-        console.log(`📍 Collection points array:`, points);
+        console.log(`Loaded ${points.length} bins from database (${realBinCount} real sensor bin${realBinCount !== 1 ? 's' : ''})`);
+        console.log(`Bins needing collection: ${needsCollection}`);
+        console.log(`Collection points array:`, points);
         setLoading(false);
       } catch (error) {
         if (error.name === 'AbortError' || error.message === 'Failed to fetch') {
-          console.warn('⚠️ Backend server offline. Please start server to view bins.');
+          console.warn('Backend server offline. Please start server to view bins.');
         } else {
           console.error('Error loading bins:', error.message);
         }
@@ -94,7 +97,8 @@ export default function Home() {
   // Load saved routes from localStorage on mount
   useEffect(() => {
     const savedRoutes = localStorage.getItem('beranda_routes');
-    const savedShowRoutes = localStorage.getItem('beranda_showRoutes');
+    // Don't auto-restore showRoutes - let user click Show button
+    // const savedShowRoutes = localStorage.getItem('beranda_showRoutes');
     const savedMapData = localStorage.getItem('beranda_mapData');
     const savedSelectedTruck = localStorage.getItem('beranda_selectedTruck');
     
@@ -102,15 +106,17 @@ export default function Home() {
       try {
         const routes = JSON.parse(savedRoutes);
         setGeneratedRoutes(routes);
-        console.log('📦 Loaded saved routes:', routes.length, 'trucks');
+        console.log('✅ Restored saved routes:', routes.length, 'trucks');
+        console.log('   Click "Show" button to display routes on map');
       } catch (e) {
         console.error('Error parsing saved routes:', e);
+        // Clear corrupted data
+        localStorage.removeItem('beranda_routes');
       }
     }
     
-    if (savedShowRoutes === 'true') {
-      setShowRoutes(true);
-    }
+    // Don't auto-show routes on refresh - prevents map initialization errors
+    // User should click "Show" button to view routes
     
     if (savedMapData) {
       try {
@@ -118,6 +124,7 @@ export default function Home() {
         setMapData(mapDataParsed);
       } catch (e) {
         console.error('Error parsing saved map data:', e);
+        localStorage.removeItem('beranda_mapData');
       }
     }
     
@@ -130,7 +137,7 @@ export default function Home() {
   useEffect(() => {
     if (generatedRoutes.length > 0) {
       localStorage.setItem('beranda_routes', JSON.stringify(generatedRoutes));
-      console.log('💾 Routes saved to localStorage');
+      console.log('Routes saved to localStorage');
     }
   }, [generatedRoutes]);
 
@@ -155,14 +162,14 @@ export default function Home() {
 
   // Update waypoints when truck selection or routes change
   useEffect(() => {
-    console.log('🔄 Waypoints effect triggered:', { showRoutes, selectedTruckId, routesCount: generatedRoutes.length });
+    console.log('Waypoints effect triggered:', { showRoutes, selectedTruckId, routesCount: generatedRoutes.length });
     
     if (showRoutes && generatedRoutes.length > 0) {
       if (selectedTruckId !== null) {
         // Find the specific truck's route
-        console.log('🔍 Looking for truck ID:', selectedTruckId);
+        console.log('Looking for truck ID:', selectedTruckId);
         const selectedRoute = generatedRoutes.find(route => route.id === selectedTruckId);
-        console.log('🎯 Found route:', selectedRoute ? `${selectedRoute.name} with ${selectedRoute.points.length} points` : 'NOT FOUND');
+        console.log('Found route:', selectedRoute ? `${selectedRoute.name} with ${selectedRoute.points.length} points` : 'NOT FOUND');
         
         if (selectedRoute && selectedRoute.points.length > 0) {
           // Convert points array to waypoints format
@@ -170,18 +177,18 @@ export default function Home() {
             lat: point[0],
             lng: point[1]
           }));
-          console.log('✅ Setting waypoints:', waypoints.length);
+          console.log('Setting waypoints:', waypoints.length);
           setRouteWaypoints(waypoints);
         } else {
-          console.log('⚠️ No waypoints - route not found or empty');
+          console.log('No waypoints - route not found or empty');
           setRouteWaypoints([]);
         }
       } else {
-        console.log('ℹ️ No truck selected (null) - clearing waypoints');
+        console.log('No truck selected (null) - clearing waypoints');
         setRouteWaypoints([]);
       }
     } else {
-      console.log('ℹ️ Routes not shown or no generated routes - clearing waypoints');
+      console.log('Routes not shown or no generated routes - clearing waypoints');
       setRouteWaypoints([]);
     }
   }, [showRoutes, selectedTruckId, generatedRoutes]);
@@ -246,7 +253,7 @@ export default function Home() {
           }
 
           const result = await response.json();
-          console.log(`✅ ${route.name}: ${result.totalBins} bins assigned`);
+          console.log(`${route.name}: ${result.totalBins} bins assigned`);
           
           return response.status === 201 ? 'created' : 'updated';
         } catch (fetchError) {
@@ -268,13 +275,13 @@ export default function Home() {
         let message = '';
         if (newlyCreated > 0) message += `${newlyCreated} created`;
         if (updated > 0) message += `${message ? ', ' : ''}${updated} updated`;
-        addNotification(`✅ Truck assignments: ${message}!`, 'success');
+        addNotification(`Truck assignments: ${message}!`, 'success');
       } else if (errors === 0) {
         setTrackingCreated(true);
       }
     } catch (error) {
       console.error('Error creating truck assignments:', error);
-      addNotification('⚠️ Backend server not available. Tracking features may be limited.', 'warning');
+      addNotification('Backend server not available. Tracking features may be limited.', 'warning');
       setTrackingCreated(true);
     }
   };
@@ -287,33 +294,202 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showRoutes, generatedRoutes, trackingCreated]);
   
-  const handleStart = () => {
-    console.log('🚀 Start button clicked');
-    console.log('   Current generatedRoutes:', generatedRoutes.length);
-    console.log('   Current showRoutes:', showRoutes);
+  const handleStart = async () => {
+    console.log('🚀 Start button clicked - Running simulation...');
     
     setIsGeneratingRoutes(true);
+    setShowRoutes(false); // Hide routes if currently showing
     setTrackingCreated(false); // Reset tracking state
-    // Simulate route generation delay
-    setTimeout(() => {
-      console.log('✅ Setting showRoutes to true');
-      setShowRoutes(true);
+    
+    try {
+      // Call backend to run simulation (updates fill levels and generates routes)
+      const response = await fetch(API_ENDPOINTS.simulation.run, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to run simulation');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Simulation result:', result);
+      
+      if (!result.success || !result.data?.gaResult?.solution) {
+        throw new Error('Invalid simulation response');
+      }
+      
+      const { solution, binDetails } = result.data.gaResult;
+      
+      // Check if there are bins to collect
+      if (!solution.routes || solution.routes.length === 0 || solution.total_distance === 0) {
+        addNotification('ℹ️ No bins need collection at this time (all below 80%)', 'info');
+        setGeneratedRoutes([]);
+        
+        // Re-fetch bins to update UI with current fill levels
+        const binsResponse = await fetch(API_ENDPOINTS.bins);
+        if (binsResponse.ok) {
+          const bins = await binsResponse.json();
+          const points = bins.map(bin => ({
+            id: bin.bin_id,
+            lat: bin.location.lat,
+            lng: bin.location.lon,
+            fillLevel: Math.round((bin.current_fill_ga / bin.capacity) * 100),
+            name: bin.name,
+            isReal: bin.is_real || false
+          }));
+          setCollectionPoints(points);
+        }
+        return;
+      }
+      
+      // Validate binDetails
+      const safeBinDetails = binDetails || {};
+      
+      // Helper function to get route color
+      const getRouteColor = (index) => {
+        const colors = ['#ef4444', '#3b82f6', '#10b981'];
+        return colors[index % colors.length];
+      };
+      
+      // Transform backend routes to frontend format
+      const transformedRoutes = solution.routes.map((route, index) => {
+        // Use DEPOT constant from mapUtils for consistency
+        const DEPOT_COORDS = [DEPOT.lat, DEPOT.lng];
+        
+        // Build points array: ensure depot -> bins -> depot structure
+        let routePath = route.route || [];
+        
+        // VALIDATION: Ensure route starts and ends with depot
+        const startsWithDepot = routePath[0] === 'depot';
+        const endsWithDepot = routePath[routePath.length - 1] === 'depot';
+        
+        console.log(`🔍 Route ${route.truck_no} validation:`, {
+          originalRoute: routePath,
+          startsWithDepot,
+          endsWithDepot,
+          routeLength: routePath.length
+        });
+        
+        // FIX: If route doesn't start/end with depot, add it
+        if (!startsWithDepot) {
+          console.warn(`⚠️ Route ${route.truck_no} doesn't start with depot - adding it`);
+          routePath = ['depot', ...routePath];
+        }
+        if (!endsWithDepot) {
+          console.warn(`⚠️ Route ${route.truck_no} doesn't end with depot - adding it`);
+          routePath = [...routePath, 'depot'];
+        }
+        
+        console.log(`✅ Fixed route ${route.truck_no}:`, routePath);
+        
+        // Build points array with coordinates
+        const points = routePath.map(binId => {
+          if (binId === 'depot') {
+            return DEPOT_COORDS;
+          }
+          const binDetail = safeBinDetails[binId];
+          if (binDetail) {
+            return [binDetail.lat, binDetail.lng];
+          }
+          console.warn(`⚠️ Bin detail not found for: ${binId}`);
+          return null;
+        }).filter(p => p !== null);
+        
+        // FINAL VALIDATION: Ensure points array physically has depot coordinates
+        const firstPoint = points[0];
+        const lastPoint = points[points.length - 1];
+        const isFirstDepot = firstPoint && firstPoint[0] === DEPOT_COORDS[0] && firstPoint[1] === DEPOT_COORDS[1];
+        const isLastDepot = lastPoint && lastPoint[0] === DEPOT_COORDS[0] && lastPoint[1] === DEPOT_COORDS[1];
+        
+        if (!isFirstDepot && points.length > 0) {
+          console.warn(`⚠️ Points array doesn't start with depot coordinates - prepending`);
+          points.unshift(DEPOT_COORDS);
+        }
+        if (!isLastDepot && points.length > 0) {
+          console.warn(`⚠️ Points array doesn't end with depot coordinates - appending`);
+          points.push(DEPOT_COORDS);
+        }
+        
+        console.log(`📍 Route ${route.truck_no} points:`, {
+          totalPoints: points.length,
+          firstPoint: points[0],
+          lastPoint: points[points.length - 1],
+          depotCoords: DEPOT_COORDS,
+          startsAtDepot: points[0] && points[0][0] === DEPOT_COORDS[0] && points[0][1] === DEPOT_COORDS[1],
+          endsAtDepot: points[points.length - 1] && points[points.length - 1][0] === DEPOT_COORDS[0] && points[points.length - 1][1] === DEPOT_COORDS[1]
+        });
+        
+        // Get bin objects for this route (excluding depot)
+        const bins = routePath
+          .filter(binId => binId !== 'depot')
+          .map(binId => {
+            const binDetail = safeBinDetails[binId];
+            if (binDetail) {
+              return {
+                id: binId,
+                lat: binDetail.lat,
+                lng: binDetail.lng,
+                fillLevel: Math.round((binDetail.current_fill_ga / binDetail.capacity) * 100),
+                name: binDetail.name
+              };
+            }
+            return null;
+          })
+          .filter(b => b !== null);
+        
+        return {
+          id: route.truck_no,
+          name: `Truck ${route.truck_no}`,
+          bins: bins,
+          points: points,
+          binCount: bins.length,
+          totalDistance: route.distance,
+          totalTime: Math.round(route.distance / 30 * 60), // Estimate: 30 km/h
+          color: getRouteColor(index),
+          utilization: route.utilization,
+          load: route.load,
+          emissions: route.emissions
+        };
+      });
+      
+      console.log('📦 Routes generated:', transformedRoutes.length, 'trucks');
+      setGeneratedRoutes(transformedRoutes);
+      // Don't auto-show routes - let user click Show button
+      // setShowRoutes(true);
+      setSelectedTruckId(1); // Auto-select first truck
+      
+      addNotification(`✅ Routes generated! ${transformedRoutes.length} trucks assigned. Click "Show" to view routes.`, 'success');
+      
+      // Re-fetch bins to update UI with emptied bins and include sensor bin
+      const binsResponse = await fetch(API_ENDPOINTS.bins);
+      if (binsResponse.ok) {
+        const bins = await binsResponse.json();
+        const points = bins.map(bin => ({
+          id: bin.bin_id,
+          lat: bin.location.lat,
+          lng: bin.location.lon,
+          fillLevel: Math.round((bin.current_fill_ga / bin.capacity) * 100),
+          name: bin.name,
+          isReal: bin.is_real || false
+        }));
+        setCollectionPoints(points);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error running simulation:', error);
+      addNotification('Failed to run simulation. Please check backend server.', 'error');
+    } finally {
       setIsGeneratingRoutes(false);
-    }, 800); // 800ms delay for visual feedback
+    }
   };
 
   const handleTruckSelect = (truckId) => {
-    console.log('🚛 Truck selected:', truckId, 'Type:', typeof truckId);
-    console.log('📋 Available routes:', generatedRoutes.map(r => ({ id: r.id, name: r.name })));
+    console.log('Truck selected:', truckId, 'Type:', typeof truckId);
+    console.log('Available routes:', generatedRoutes.map(r => ({ id: r.id, name: r.name })));
     setSelectedTruckId(truckId);
-  };
-
-  const handleRoutesGenerated = (routes) => {
-    console.log('📦 Routes generated:', routes.length, 'routes');
-    routes.forEach(route => {
-      console.log(`  - Route ${route.id}: ${route.name}, ${route.binCount} bins, ${route.points.length} waypoints`);
-    });
-    setGeneratedRoutes(routes);
   };
 
   const handleClearRoutes = async () => {
@@ -345,7 +521,15 @@ export default function Home() {
     localStorage.removeItem('beranda_mapData');
     localStorage.removeItem('beranda_selectedTruck');
     
-    addNotification('🗑️ Routes and tracking data cleared successfully', 'success');
+    addNotification('Routes and tracking data cleared successfully', 'success');
+  };
+
+  const handleToggleRoutes = () => {
+    if (generatedRoutes.length === 0) {
+      addNotification('⚠️ No routes generated yet. Click "Start" first!', 'warning');
+      return;
+    }
+    setShowRoutes(!showRoutes);
   };
 
   const handleViewTracking = () => {
@@ -415,7 +599,6 @@ export default function Home() {
               onDataChange={setMapData}
               selectedTruckId={selectedTruckId}
               onTruckSelect={handleTruckSelect}
-              onRoutesGenerated={handleRoutesGenerated}
               savedRoutes={generatedRoutes}
             />
           ) : (
@@ -425,17 +608,32 @@ export default function Home() {
           )}
           
           {/* Button Section */}
-          <div className="flex justify-center">
-            {isGeneratingRoutes ? (
-              <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
-                <div className="text-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-1"></div>
-                  <span className="text-[8px] text-black font-semibold">Generating...</span>
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex justify-center gap-3">
+              {isGeneratingRoutes ? (
+                <div className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md flex items-center justify-center flex-shrink-0">
+                  <div className="text-center">
+                    <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-1"></div>
+                    <span className="text-[8px] text-black font-semibold">Generating...</span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <StartButton onClick={handleStart} />
-            )}
+              ) : (
+                <StartButton onClick={handleStart} />
+              )}
+              
+              {/* Show/Hide Routes Button - Only show if routes are generated */}
+              {generatedRoutes.length > 0 && !isGeneratingRoutes && (
+                <button
+                  onClick={handleToggleRoutes}
+                  className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md hover:shadow-lg transition-all flex items-center justify-center"
+                >
+                  <div className="text-center">
+                    <div className="text-3xl mb-1">{showRoutes ? '👁️' : '🗺️'}</div>
+                    <span className="text-xs text-black font-bold">{showRoutes ? 'Hide' : 'Show'}</span>
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Route Details Section */}
@@ -457,7 +655,6 @@ export default function Home() {
                 onClick={handleViewTracking}
                 className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center justify-center gap-2"
               >
-                <span className="text-xl">📍</span>
                 <span>View Live Tracking</span>
                 <span className="text-xl">→</span>
               </button>
@@ -466,7 +663,6 @@ export default function Home() {
                 onClick={handleClearRoutes}
                 className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors border-2 border-black flex items-center justify-center gap-2"
               >
-                <span>🗑️</span>
                 <span className="text-sm">Clear Routes</span>
               </button>
             </div>
@@ -506,7 +702,6 @@ export default function Home() {
             onDataChange={setMapData}
             selectedTruckId={selectedTruckId}
             onTruckSelect={handleTruckSelect}
-            onRoutesGenerated={handleRoutesGenerated}
             savedRoutes={generatedRoutes}
           />
         ) : (
@@ -527,6 +722,20 @@ export default function Home() {
           ) : (
             <StartButton onClick={handleStart} />
           )}
+          
+          {/* Show/Hide Routes Button - Desktop */}
+          {generatedRoutes.length > 0 && !isGeneratingRoutes && (
+            <button
+              onClick={handleToggleRoutes}
+              className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md hover:shadow-lg transition-all flex items-center justify-center flex-shrink-0"
+            >
+              <div className="text-center">
+                <div className="text-4xl mb-1">{showRoutes ? '👁️' : '🗺️'}</div>
+                <span className="text-sm text-black font-bold">{showRoutes ? 'Hide' : 'Show'}</span>
+              </div>
+            </button>
+          )}
+          
           <div className="bg-white rounded-lg shadow-md border-2 border-black flex-1">
             <RouteDetails details={routeDetails} />
           </div>
@@ -548,7 +757,6 @@ export default function Home() {
               onClick={handleViewTracking}
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-md hover:shadow-lg transition-all border-2 border-black flex items-center gap-3"
             >
-              <span className="text-2xl">📍</span>
               <span className="text-lg">View Live Tracking Dashboard</span>
               <span className="text-2xl">→</span>
             </button>
@@ -557,7 +765,6 @@ export default function Home() {
               onClick={handleClearRoutes}
               className="bg-red-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-red-700 transition-colors border-2 border-black flex items-center gap-2"
             >
-              <span className="text-xl">🗑️</span>
               <span>Clear Routes</span>
             </button>
           </div>

@@ -2,23 +2,26 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 
 export default function Sidebar() {
   const pathname = usePathname();
 
-  const navItems = [
+  // Use useMemo to ensure navItems is consistent between server and client
+  const navItems = useMemo(() => [
     {
       href: "/",
       label: "Beranda",
       icon: "/HomeButton.svg",
       activeIcon: "/HomeButtonFill.svg"
     },
-    {
-      href: "/simulasi",
-      label: "Simulasi",
-      icon: "/Simulasi.svg",
-      activeIcon: "/SimulasiFill.svg"
-    },
+    // Temporarily hide Simulasi page - functionality moved to Beranda
+    // {
+    //   href: "/simulasi",
+    //   label: "Simulasi",
+    //   icon: "/Simulasi.svg",
+    //   activeIcon: "/SimulasiFill.svg"
+    // },
     {
       href: "/tracking",
       label: "Tracking",
@@ -37,7 +40,7 @@ export default function Sidebar() {
       icon: "/List.svg",
       activeIcon: "/ListFill.svg"
     }
-  ];
+  ], []);
 
   return (
     <aside className="hidden sm:flex w-20 lg:w-48 bg-white shadow-md rounded-br-2xl rounded-tr-2xl border-2 sm:border-3 border-black min-h-screen flex-col items-center py-6">
