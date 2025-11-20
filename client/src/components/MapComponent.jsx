@@ -67,17 +67,72 @@ const createIcon = (color) => {
 const truckIcon = L.divIcon({
   className: 'custom-div-icon',
   html: `
-    <div style="
-      background-color: #000;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 3px solid white;
-      box-shadow: 0 0 4px rgba(0,0,0,0.5);
-    "></div>
+    <div style="position: relative;">
+      <!-- Pulsing circle animation -->
+      <div style="
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        background: radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0) 70%);
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+      "></div>
+      
+      <!-- Main depot icon -->
+      <div style="
+        position: relative;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 4px solid white;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6), 0 0 0 2px rgba(239, 68, 68, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      ">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+          <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+        </svg>
+      </div>
+      
+      <!-- DEPOT label -->
+      <div style="
+        position: absolute;
+        top: -28px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 4px 10px;
+        border-radius: 6px;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+        border: 2px solid white;
+        letter-spacing: 0.5px;
+      ">DEPOT</div>
+    </div>
+    <style>
+      @keyframes pulse {
+        0%, 100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.3);
+          opacity: 0.5;
+        }
+      }
+    </style>
   `,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
 });
 
 // Start point icon (green flag)
@@ -336,7 +391,7 @@ export default function MapComponent({
 
     try {
       const map = L.map(mapContainerRef.current, {
-        center: [-7.797068, 110.370529], // Yogyakarta coordinates
+        center: [DEPOT.lat, DEPOT.lng], // Center on depot (TPS Piyungan)
         zoom: 13,
         scrollWheelZoom: true
       });

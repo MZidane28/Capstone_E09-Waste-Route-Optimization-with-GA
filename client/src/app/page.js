@@ -360,6 +360,14 @@ export default function Home() {
             isReal: bin.is_real || false
           }));
           setCollectionPoints(points);
+          
+          // Update mapData with current needs collection count
+          const needsCollection = points.filter(point => point.fillLevel >= 80).length;
+          setMapData(prev => ({
+            ...prev,
+            needsCollection,
+            points
+          }));
         }
         return;
       }
@@ -498,7 +506,7 @@ export default function Home() {
       
       addNotification(`✅ Routes generated! ${transformedRoutes.length} trucks assigned. Click "Show" to view routes.`, 'success');
       
-      // Re-fetch bins to update UI with emptied bins and include sensor bin
+      // Re-fetch bins to update fill levels in UI
       const binsResponse = await fetch(API_ENDPOINTS.bins);
       if (binsResponse.ok) {
         const bins = await binsResponse.json();
@@ -511,6 +519,14 @@ export default function Home() {
           isReal: bin.is_real || false
         }));
         setCollectionPoints(points);
+        
+        // Update mapData with current needs collection count
+        const needsCollection = points.filter(point => point.fillLevel >= 80).length;
+        setMapData(prev => ({
+          ...prev,
+          needsCollection,
+          points
+        }));
       }
       
     } catch (error) {

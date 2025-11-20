@@ -24,5 +24,8 @@
     "route-optimization"
   ],
   "author": "Capstone E09 Team",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "recharts": "^3.4.1"
+  }
 }
