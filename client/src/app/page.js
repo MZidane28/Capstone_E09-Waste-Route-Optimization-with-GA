@@ -54,8 +54,6 @@ export default function Home() {
           const capacity = bin.capacity || 100;
           const fillPercentage = Math.round((currentFill / capacity) * 100);
           
-          console.log(`Bin ${bin.bin_id}: ${bin.name} - Fill: ${currentFill}/${capacity} = ${fillPercentage}% ${bin.is_real ? '📡 (REAL SENSOR)' : ''}`);
-          
           return {
             id: bin.bin_id,
             lat: bin.location.lat,

@@ -41,25 +41,15 @@ export async function initializeSimulation(clearHistory = false) {
 
 export async function updateBinFillLevels() {
     try {
-        const bins = await Bin.find({});
-        let skippedCount = 0;
-        let updatedCount = 0;
-
+        const bins = await Bin.find({ is_real: false });
+        
         for (const bin of bins) {
-            // Skip real bins - they get updates from MQTT sensor
-            if (bin.is_real) {
-                console.log(`⏭️  Skipping real bin: ${bin.name} (${bin.bin_id}) - gets data from sensor`);
-                skippedCount++;
-                continue;
-            }
-
             bin.updateFill('ga');
             bin.updateFill('nn');
             await bin.save();
-            updatedCount++;
         }
 
-        console.log(`📊 Fill levels updated: ${updatedCount} simulated bins, ${skippedCount} real bins skipped`);
+        console.log(`Fill levels updated: ${bins.length} simulated bins`);
         return bins;
     } catch (error) {
         throw new Error(`Failed to update bin fill levels: ${error.message}`);
@@ -109,7 +99,7 @@ export async function runGAoptimization(day) {
                 { upsert: true, new: true }
             );
 
-            console.log(`⚠️  GA: No bins to collect on day ${day}. Saved empty solution.`);
+            console.log(` GA: No bins to collect on day ${day}. Saved empty solution.`);
             return { solution: emptySolution };
         }
 
