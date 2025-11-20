@@ -85,10 +85,25 @@ export const compareSolutions = async (req, res) => {
       const totalEmissions = solutions.reduce((sum, sol) => sum + sol.total_emissions, 0);
       const totalTrucks = solutions.reduce((sum, sol) => sum + sol.number_of_trucks, 0);
 
+      let weightedUtilization = 0;
+      let totalTruckCount = 0;
+
+      solutions.forEach(sol => {
+        if (sol.avg_utilization && sol.number_of_trucks > 0) {
+          weightedUtilization += sol.avg_utilization * sol.number_of_trucks;
+          totalTruckCount += sol.number_of_trucks;
+        }
+      });
+
+      const avgUtilz = totalTruckCount > 0 
+        ? weightedUtilization / totalTruckCount 
+        : 0;
+
       return {
         total_distance: totalDistance,
         total_emissions: totalEmissions,
         total_trucks: totalTrucks,
+        avg_utilization: avgUtilz,
         days_count: solutions.length,
       };
     };
