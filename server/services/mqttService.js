@@ -116,11 +116,6 @@ class MQTTService {
 
             await bin.save();
 
-            console.log(
-                `Updated real bin "${bin.name}" (${bin.bin_id}): ` +
-                `${actualFill.toFixed(1)}/${bin.capacity} kg (${fillPercentage.toFixed(1)}%)`
-            );
-
             if (threshold) {
                 console.log('THRESHOLD TRIGGERED! Bin needs attention.');
             }
