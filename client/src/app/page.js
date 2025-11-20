@@ -49,8 +49,8 @@ export default function Home() {
         // Transform database bins to map format
         // Database schema: { bin_id, name, location: { lat, lon }, current_fill_ga, capacity, fill_rate, is_real }
         const points = bins.map(bin => {
-          // Try current_fill_ga first, fallback to fill_rate, then default to 0
-          const currentFill = bin.current_fill_ga || bin.fill_rate || 0;
+          // Use current_fill_ga directly (no fallback to fill_rate)
+          const currentFill = bin.current_fill_ga ?? 0;
           const capacity = bin.capacity || 100;
           const fillPercentage = Math.round((currentFill / capacity) * 100);
           
@@ -237,7 +237,7 @@ export default function Home() {
             name: `Bin ${idx + 1}`,
             latitude: point[0],
             longitude: point[1],
-            fillLevel: 85 // Default to 85% if no data available
+            fillLevel: 0 // Default to 0% if no data available
           }));
         }
         
