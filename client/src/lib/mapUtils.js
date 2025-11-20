@@ -13,7 +13,7 @@ const BOUNDS = {
 export const DEPOT = {
   lat: -7.7391893,
   lng: 110.4026205,
-  name: "TPS Piyungan"
+  name: "TPS 3R GIAAAAAT"
 };
 
 // Fixed source points (truck depots) - all trucks use the same depot

@@ -170,12 +170,33 @@ export default function Home() {
         console.log('Found route:', selectedRoute ? `${selectedRoute.name} with ${selectedRoute.points.length} points` : 'NOT FOUND');
         
         if (selectedRoute && selectedRoute.points.length > 0) {
-          // Convert points array to waypoints format
-          const waypoints = selectedRoute.points.map(point => ({
-            lat: point[0],
-            lng: point[1]
-          }));
-          console.log('Setting waypoints:', waypoints.length);
+          // Convert points and bins to waypoints with full bin info
+          const waypoints = selectedRoute.points.map((point, index) => {
+            // First and last are depot
+            if (index === 0 || index === selectedRoute.points.length - 1) {
+              return {
+                lat: point[0],
+                lng: point[1],
+                isDepot: true,
+                name: index === 0 ? 'Start: Depot' : 'Finish: Depot'
+              };
+            }
+            
+            // Middle points are bins - get bin info
+            const binIndex = index - 1; // Adjust for depot at start
+            const binInfo = selectedRoute.bins && selectedRoute.bins[binIndex];
+            
+            return {
+              lat: point[0],
+              lng: point[1],
+              isDepot: false,
+              binId: binInfo?.id || `Bin ${index}`,
+              name: binInfo?.name || `Bin ${index}`,
+              fillLevel: binInfo?.fillLevel
+            };
+          });
+          
+          console.log('Setting waypoints with bin IDs:', waypoints);
           setRouteWaypoints(waypoints);
         } else {
           console.log('No waypoints - route not found or empty');
