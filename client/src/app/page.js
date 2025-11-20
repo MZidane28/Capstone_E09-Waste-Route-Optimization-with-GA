@@ -348,9 +348,25 @@ export default function Home() {
       // Validate binDetails
       const safeBinDetails = binDetails || {};
       
-      // Helper function to get route color
+      // Helper function to get route color - expanded palette for many trucks
       const getRouteColor = (index) => {
-        const colors = ['#ef4444', '#3b82f6', '#10b981'];
+        const colors = [
+          '#ef4444', // Red
+          '#3b82f6', // Blue
+          '#10b981', // Green
+          '#f59e0b', // Amber
+          '#8b5cf6', // Purple
+          '#ec4899', // Pink
+          '#14b8a6', // Teal
+          '#f97316', // Orange
+          '#6366f1', // Indigo
+          '#84cc16', // Lime
+          '#06b6d4', // Cyan
+          '#a855f7', // Violet
+          '#eab308', // Yellow
+          '#22c55e', // Emerald
+          '#0ea5e9'  // Sky Blue
+        ];
         return colors[index % colors.length];
       };
       
@@ -560,7 +576,22 @@ export default function Home() {
       }
     }
 
-    // Otherwise show overall statistics
+    // Otherwise show overall statistics (all trucks)
+    if (showRoutes && generatedRoutes.length > 0) {
+      const totalDistance = generatedRoutes.reduce((sum, route) => 
+        sum + (route.totalDistance || route.binCount * 0.4), 0);
+      const totalTime = generatedRoutes.reduce((sum, route) => 
+        sum + (route.totalTime || (route.binCount * 0.4 / 30) * 60 + (route.binCount * 2)), 0);
+      const totalBins = generatedRoutes.reduce((sum, route) => sum + route.binCount, 0);
+      
+      return {
+        tujuan: `${generatedRoutes.length} Trucks Aktif`,
+        jarak: `${totalDistance.toFixed(1)} Km Total`,
+        estimasi: `${Math.round(totalTime)} menit Total`,
+        tongSampah: `${totalBins} tong sampah (${generatedRoutes.length} rute)`
+      };
+    }
+    
     return {
       tujuan: showRoutes ? "Semua Truck Aktif" : "Menunggu",
       jarak: mapData.needsCollection > 0 ? `~${(mapData.needsCollection * 0.5).toFixed(1)} Km` : "0 Km",
@@ -628,7 +659,11 @@ export default function Home() {
                   className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md hover:shadow-lg transition-all flex items-center justify-center"
                 >
                   <div className="text-center">
-                    <div className="text-3xl mb-1">{showRoutes ? '👁️' : '🗺️'}</div>
+                    <img 
+                      src={showRoutes ? '/hide.svg' : '/show.svg'} 
+                      alt={showRoutes ? 'Hide' : 'Show'}
+                      className="w-12 h-12 mb-1 mx-auto"
+                    />
                     <span className="text-xs text-black font-bold">{showRoutes ? 'Hide' : 'Show'}</span>
                   </div>
                 </button>
@@ -643,8 +678,8 @@ export default function Home() {
           {showRoutes && generatedRoutes.length > 0 && (
             <TruckSelector
               trucks={generatedRoutes}
-              selectedTruckId={selectedTruckId}
-              onSelectTruck={handleTruckSelect}
+              selectedTruck={selectedTruckId}
+              onSelect={handleTruckSelect}
             />
           )}
 
@@ -730,7 +765,11 @@ export default function Home() {
               className="bg-white border-2 border-black font-bold w-28 h-28 rounded-full shadow-md hover:shadow-lg transition-all flex items-center justify-center flex-shrink-0"
             >
               <div className="text-center">
-                <div className="text-4xl mb-1">{showRoutes ? '👁️' : '🗺️'}</div>
+                <img 
+                  src={showRoutes ? '/hide.svg' : '/show.svg'} 
+                  alt={showRoutes ? 'Hide' : 'Show'}
+                  className="w-14 h-14 mb-1 mx-auto"
+                />
                 <span className="text-sm text-black font-bold">{showRoutes ? 'Hide' : 'Show'}</span>
               </div>
             </button>
@@ -745,8 +784,8 @@ export default function Home() {
         {showRoutes && generatedRoutes.length > 0 && (
           <TruckSelector
             trucks={generatedRoutes}
-            selectedTruckId={selectedTruckId}
-            onSelectTruck={handleTruckSelect}
+            selectedTruck={selectedTruckId}
+            onSelect={handleTruckSelect}
           />
         )}
 

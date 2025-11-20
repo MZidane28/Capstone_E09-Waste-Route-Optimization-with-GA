@@ -496,9 +496,25 @@ export default function Simulasi() {
     setShowRoutes(false);
   };
   
-  // Helper function for route colors
+  // Helper function for route colors - expanded palette for many trucks
   const getRouteColor = (index) => {
-    const colors = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'];
+    const colors = [
+      '#ef4444', // Red
+      '#3b82f6', // Blue
+      '#10b981', // Green
+      '#f59e0b', // Amber
+      '#8b5cf6', // Purple
+      '#ec4899', // Pink
+      '#14b8a6', // Teal
+      '#f97316', // Orange
+      '#6366f1', // Indigo
+      '#84cc16', // Lime
+      '#06b6d4', // Cyan
+      '#a855f7', // Violet
+      '#eab308', // Yellow
+      '#22c55e', // Emerald
+      '#0ea5e9'  // Sky Blue
+    ];
     return colors[index % colors.length];
   };
 

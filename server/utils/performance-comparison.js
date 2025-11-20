@@ -107,7 +107,7 @@ export async function runPerformanceComparison(config = {}) {
   const {
     numBins = 100,
     numTrucks = 3,
-    depot = { lat: -7.797068, lng: 110.370529, name: 'Depot' },
+    depot = { lat: -7.7391893, lng: 110.4026205, name: 'TPS Piyungan' },
     gaGenerations = 50,
     gaPopulationSize = 100
   } = config;
