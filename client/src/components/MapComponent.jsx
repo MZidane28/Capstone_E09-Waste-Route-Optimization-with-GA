@@ -534,8 +534,15 @@ export default function MapComponent({
         ? routes.filter(route => route.id === selectedTruckId)
         : routes;
 
-      routesToShow.forEach(route => {
-        if (route.points.length > 1) { // Only show routes with collection points
+      const isMultipleRoutes = routesToShow.length > 1;
+      console.log(`🚛 Rendering ${routesToShow.length} route(s)${isMultipleRoutes ? ' (All Trucks - sequential with delay)' : ''}`);
+
+      // Process routes sequentially with delay for "All Trucks" to avoid OSRM rate limiting
+      const processRoute = (route, index) => {
+        const delay = isMultipleRoutes ? index * 500 : 0; // 500ms delay between each route for multiple trucks
+        
+        setTimeout(() => {
+          if (route.points.length > 1) { // Only show routes with collection points
           // Safety check: ensure map is still mounted
           if (!mapRef.current) {
             console.warn('⚠️ Map is not mounted, skipping route generation');
@@ -557,7 +564,8 @@ export default function MapComponent({
           console.log(`   Is last = depot? ${waypoints[waypoints.length-1].lat === DEPOT.lat && waypoints[waypoints.length-1].lng === DEPOT.lng}`);
           
           // Try OSRM routing with automatic fallback to direct routes
-          const USE_OSRM_ROUTING = true; // Set to false to always use direct routes
+          // Always use OSRM for real routes, even for multiple trucks
+          const USE_OSRM_ROUTING = true;
           let routingFailed = false;
           
           // Helper function to create direct route (used as fallback)
@@ -669,7 +677,7 @@ export default function MapComponent({
             router: L.Routing.osrmv1({
               serviceUrl: 'https://router.project-osrm.org/route/v1',
               profile: 'car', // Use 'car' instead of 'driving' for better compatibility
-              timeout: 5000, // Reduce timeout to 5 seconds for faster fallback
+              timeout: 20000, // 10 seconds timeout for all routes
               suppressDemoServerWarning: true,
               // Add request parameters for better routing
               routingOptions: {
@@ -889,7 +897,13 @@ export default function MapComponent({
           }
           // End of routing section
         } // close if (route.points.length > 1)
-      }); // close routesToShow.forEach
+        }, delay); // close setTimeout
+      }; // close processRoute function
+      
+      // Execute processRoute for each route
+      routesToShow.forEach((route, index) => {
+        processRoute(route, index);
+      });
     } else { // close if (showRoutes)
       // When showRoutes = false, restore collection point markers
       // First, clear any existing markers from map
@@ -1069,8 +1083,14 @@ export default function MapComponent({
         ? routes.filter(route => route.id === selectedTruckId)
         : routes;
 
-      routesToShow.forEach(route => {
-        if (route.points.length > 1) {
+      const isMultipleRoutes = routesToShow.length > 1;
+      
+      // Process routes sequentially with delay for "All Trucks"
+      const processFullscreenRoute = (route, index) => {
+        const delay = isMultipleRoutes ? index * 500 : 0;
+        
+        setTimeout(() => {
+          if (route.points.length > 1) {
           const waypoints = route.points.map(point => L.latLng(point[0], point[1]));
           
           // Get depot location from SOURCE_POINTS
@@ -1104,7 +1124,7 @@ export default function MapComponent({
             router: L.Routing.osrmv1({
               serviceUrl: 'https://router.project-osrm.org/route/v1',
               profile: 'car',
-              timeout: 10000,
+              timeout: 10000, // 10 seconds timeout
               suppressDemoServerWarning: true,
               routingOptions: {
                 alternatives: false,
@@ -1248,6 +1268,12 @@ export default function MapComponent({
             }
           });
         }
+        }, delay); // close setTimeout
+      }; // close processFullscreenRoute function
+      
+      // Execute processFullscreenRoute for each route
+      routesToShow.forEach((route, index) => {
+        processFullscreenRoute(route, index);
       });
     }
   };
@@ -1333,10 +1359,10 @@ export default function MapComponent({
         <h2 className="text-xl sm:text-2xl text-black font-bold mb-3 sm:mb-4 px-2">Peta Rute</h2>
         <div className="map-container">
           <div className="map-controls">
-            {showRoutes && (
+            {showRoutes && savedRoutes && savedRoutes.length > 0 && (
               <div className="truck-selector">
                 <TruckSelector
-                  trucks={SOURCE_POINTS}
+                  trucks={savedRoutes}
                   selectedTruck={selectedTruckId}
                   onSelect={onTruckSelect}
                 />
@@ -1366,10 +1392,10 @@ export default function MapComponent({
           <div className={`map-fullscreen-container ${isFullscreen ? 'active' : ''}`}>
             <div className="map-fullscreen-header">
               <h2 className="text-xl font-bold text-black">Peta Rute</h2>
-              {showRoutes && (
+              {showRoutes && savedRoutes && savedRoutes.length > 0 && (
                 <div className="ml-8">
                   <TruckSelector
-                    trucks={SOURCE_POINTS}
+                    trucks={savedRoutes}
                     selectedTruck={selectedTruckId}
                     onSelect={onTruckSelect}
                   />

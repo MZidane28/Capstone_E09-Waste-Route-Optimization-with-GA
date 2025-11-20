@@ -9,10 +9,11 @@ const BOUNDS = {
 };
 
 // Single depot location - all trucks start and end here
+// Koordinat TPS Piyungan (sesuai backend)
 export const DEPOT = {
-  lat: -7.797068,
-  lng: 110.370529,
-  name: "Main Depot"
+  lat: -7.7391893,
+  lng: 110.4026205,
+  name: "TPS Piyungan"
 };
 
 // Fixed source points (truck depots) - all trucks use the same depot
@@ -159,8 +160,24 @@ export const generateMockRoutes = (sourcePoints, collectionPoints) => {
   return routes;
 };
 
-// Get a distinct color for each route
+// Get a distinct color for each route - expanded palette for many trucks
 const getRouteColor = (index) => {
-  const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080'];
+  const colors = [
+    '#ef4444', // Red
+    '#3b82f6', // Blue
+    '#10b981', // Green
+    '#f59e0b', // Amber
+    '#8b5cf6', // Purple
+    '#ec4899', // Pink
+    '#14b8a6', // Teal
+    '#f97316', // Orange
+    '#6366f1', // Indigo
+    '#84cc16', // Lime
+    '#06b6d4', // Cyan
+    '#a855f7', // Violet
+    '#eab308', // Yellow
+    '#22c55e', // Emerald
+    '#0ea5e9'  // Sky Blue
+  ];
   return colors[index % colors.length];
 };
