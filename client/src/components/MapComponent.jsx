@@ -373,8 +373,6 @@ export default function MapComponent({
       return;
     }
 
-    console.log('🎯 Rendering markers for', collectionPoints.length, 'bins');
-
     // Clear existing markers with null check
     markersRef.current.forEach(marker => {
       if (marker && marker.remove) {
@@ -389,7 +387,6 @@ export default function MapComponent({
 
     // Add collection points
     collectionPoints.forEach(point => {
-      console.log(`🏷️ Bin ${point.id}: fillLevel=${point.fillLevel}% ${point.isReal ? '📡 REAL SENSOR' : ''}`);
       
       // Determine marker color based on fill level (matching list page colors)
       let color;

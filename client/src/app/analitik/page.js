@@ -12,6 +12,7 @@ import { Leaf, Navigation, TrendingUp } from 'lucide-react';
 
 export default function Analitik() {
   const [data, setData] = useState(null);
+  const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [days, setDays] = useState(30);
@@ -21,14 +22,21 @@ export default function Analitik() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(
-          `${API_ENDPOINTS.solutions.compare}?days=${days}`
-        );
+        const [compareRes, summaryRes] = await Promise.all([
+          fetch(`${API_ENDPOINTS.solutions.compare}?days=${days}`),
+          fetch(API_ENDPOINTS.solutions.summary)
+        ]);
 
-        const result = await response.json();
+        if (!compareRes.ok || !summaryRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
 
-        if (result.success){
-          setData(result.data);
+        const compareResult = await compareRes.json();
+        const summaryResult = await summaryRes.json();
+
+        if (compareResult.success && summaryResult.success) {
+          setData(compareResult.data);
+          setOverview(summaryResult.data);
         } else {
           throw new Error('API returned success: false');
         }
@@ -75,12 +83,12 @@ export default function Analitik() {
     }
 
     const maxGaDay = Math.max(...gaDaily.map(d => d.simulation_day));
-    const maxNnDay = Math.max(...nnDaily.map(d => d.day));
+    const maxNnDay = Math.max(...nnDaily.map(d => d.simulation_day));
     const lastDay = Math.min(maxGaDay, maxNnDay);
     const firstDay = Math.max(1, lastDay - totalDays + 1);
 
     const gaFiltered = gaDaily.filter(d => d.simulation_day >= firstDay && d.simulation_day <= lastDay);
-    const nnFiltered = nnDaily.filter(d => d.day >= firstDay && d.day <= lastDay);
+    const nnFiltered = nnDaily.filter(d => d.simulation_day >= firstDay && d.simulation_day <= lastDay);
 
     const weeklyData = [];
     const weeksCount = Math.ceil(totalDays / 7);
@@ -97,10 +105,10 @@ export default function Analitik() {
         }), { distance: 0, emissions: 0 });
     
       const nnWeekData = nnFiltered
-        .filter(d => d.day >= startDay && d.day <= endDay)
+        .filter(d => d.simulation_day >= startDay && d.simulation_day <= endDay)
         .reduce((sum, d) => ({
-          distance: sum.distance + (d.distance || 0),
-          emissions: sum.emissions + (d.emissions || 0)
+          distance: sum.distance + (d.total_distance || 0),
+          emissions: sum.emissions + (d.total_emissions || 0)
         }), { distance: 0, emissions: 0 });
     
       weeklyData.push({
@@ -116,17 +124,20 @@ export default function Analitik() {
   }
 
   const weeklyData = prepareWeeklyData(ga.daily_data, nn.daily_data, days);
+
   const emissionReduced = improvements?.emissions_improvement_percentage 
     ? Math.abs(improvements.emissions_improvement_percentage).toFixed(1)
     : '0.0';
 
   const distanceSaved = improvements?.distance_saved_km
-    ? Math.abs(improvements.distance_saved_km).toFixed(0)
+    ? Math.abs(improvements.distance_saved_km).toFixed(1)
     : '0';
 
   const utilizationGA = (ga?.summary?.total_distance && nn?.summary?.total_distance)
     ? ((ga.summary.total_distance / nn.summary.total_distance) * 100).toFixed(0)
     : '0';
+
+  const periodTrips = (ga?.summary?.total_trucks || 0)
 
   return (
     <div className="py-2 px-8 space-y-4 justify-between">
@@ -160,7 +171,7 @@ export default function Analitik() {
             {/* Utilization Card */}
             <SummaryCard
               value={`${distanceSaved} %`}
-              label="Utilization"
+              label="Truck Utilization"
               icon={<TrendingUp size={24} />}
               iconBgColor="bg-purple-100"
               iconColor="text-purple-600"
@@ -176,9 +187,9 @@ export default function Analitik() {
         {/* Right Section - Efficiency Gauge */}
         <div className="lg:col-span-1 order-1 lg:order-2">
             <SimulationOverview 
-              currentDay={30}
+              currentDay={overview.current_simulation_day}
               totalBins={150}
-              totalTrips={150}
+              totalTrips={periodTrips}
               selectedDays={days}
               onDaysChange={setDays}
             />
