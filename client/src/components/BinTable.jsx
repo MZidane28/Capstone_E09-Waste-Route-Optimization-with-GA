@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '@/lib/config';
 
 export default function BinTable() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'sensor', 'simulasi'
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: null
@@ -35,8 +36,8 @@ export default function BinTable() {
         
         // Transform database bins to table format
         const transformedBins = data.map(bin => {
-          // Use current_fill_ga directly from database
-          const fillLevel = bin.current_fill_ga ?? 0;
+          // Use current_fill_ga first, fallback to fill_rate (consistent with Beranda page)
+          const fillLevel = bin.current_fill_ga || bin.fill_rate || 0;
           const capacity = bin.capacity || 100;
           const fillPercentage = Math.round((fillLevel / capacity) * 100);
           
@@ -45,7 +46,8 @@ export default function BinTable() {
             alamat: bin.name,
             keterisian: `${fillPercentage}%`,
             fillPercentage: fillPercentage,
-            status: fillPercentage >= 80 ? 'perlu diambil' : 'ok'
+            status: fillPercentage >= 80 ? 'perlu diambil' : 'ok',
+            isReal: bin.is_real || false // Mark real sensor bins
           };
         });
         
@@ -84,7 +86,16 @@ export default function BinTable() {
     .filter(bin => {
       const matchesSearch = bin.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            bin.id.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
+      
+      // Filter by type
+      let matchesType = true;
+      if (typeFilter === 'sensor') {
+        matchesType = bin.isReal === true;
+      } else if (typeFilter === 'simulasi') {
+        matchesType = bin.isReal === false;
+      }
+      
+      return matchesSearch && matchesType;
     })
     .sort((a, b) => {
       if (!sortConfig.key || !sortConfig.direction) return 0;
@@ -128,7 +139,9 @@ export default function BinTable() {
 
   return (
     <div className="bg-white rounded-[18px] border-2 border-black p-3 sm:p-4">
-      <div className="mb-4 sm:mb-6">
+      {/* Search and Filter Section */}
+      <div className="mb-4 sm:mb-6 space-y-3">
+        {/* Search Bar */}
         <div className="relative">
           <input
             type="text"
@@ -138,6 +151,43 @@ export default function BinTable() {
             className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 text-sm sm:text-base border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none text-black placeholder-gray-500"
           />
           <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+        </div>
+        
+        {/* Type Filter Buttons */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setTypeFilter('all')}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all border-2 ${
+              typeFilter === 'all' 
+                ? 'bg-black text-white border-black' 
+                : 'bg-white text-black border-gray-300 hover:border-black'
+            }`}
+          >
+            Semua ({bins.length})
+          </button>
+          <button
+            onClick={() => setTypeFilter('sensor')}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all border-2 flex items-center gap-1 ${
+              typeFilter === 'sensor' 
+                ? 'bg-blue-600 text-white border-blue-600' 
+                : 'bg-white text-blue-600 border-blue-300 hover:border-blue-600'
+            }`}
+          >
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+            </svg>
+            Sensor ({bins.filter(b => b.isReal).length})
+          </button>
+          <button
+            onClick={() => setTypeFilter('simulasi')}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all border-2 ${
+              typeFilter === 'simulasi' 
+                ? 'bg-gray-700 text-white border-gray-700' 
+                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-700'
+            }`}
+          >
+            Simulasi ({bins.filter(b => !b.isReal).length})
+          </button>
         </div>
       </div>
 
@@ -177,6 +227,9 @@ export default function BinTable() {
                   <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-black whitespace-nowrap text-sm sm:text-base font-semibold">
                     STATUS
                   </th>
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-black whitespace-nowrap text-sm sm:text-base font-semibold">
+                    TYPE
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -195,6 +248,20 @@ export default function BinTable() {
                           }}
                         />
                       </div>
+                    </td>
+                    <td className="py-2 sm:py-3 px-3 sm:px-4">
+                      {bin.isReal ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                          </svg>
+                          Sensor
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700 border border-gray-300">
+                          Simulasi
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
