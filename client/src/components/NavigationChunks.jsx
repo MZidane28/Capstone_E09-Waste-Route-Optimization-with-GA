@@ -94,7 +94,7 @@ export default function NavigationChunks({ waypoints, truckId }) {
       <div className="space-y-3 mb-4">
         {currentWaypoints.map((waypoint, index) => {
           const absoluteIndex = currentChunk * chunkSize + index;
-          const isDepot = absoluteIndex === 0 || absoluteIndex === waypoints.length - 1;
+          const isDepot = waypoint.isDepot || absoluteIndex === 0 || absoluteIndex === waypoints.length - 1;
           const lat = waypoint.lat || waypoint.coordinates?.[0];
           const lng = waypoint.lng || waypoint.coordinates?.[1];
           
@@ -114,10 +114,15 @@ export default function NavigationChunks({ waypoints, truckId }) {
               <div className="flex-1">
                 <div className="font-semibold text-black">
                   {isDepot 
-                    ? (absoluteIndex === 0 ? 'Start: Depot' : 'Finish: Depot')
-                    : `Bin ${absoluteIndex}`
+                    ? waypoint.name || (absoluteIndex === 0 ? 'Start: Depot' : 'Finish: Depot')
+                    : waypoint.binId || waypoint.name || `Bin ${absoluteIndex}`
                   }
                 </div>
+                {waypoint.fillLevel && !isDepot && (
+                  <div className="text-xs text-orange-600 font-medium mt-0.5">
+                    Fill Level: {waypoint.fillLevel}%
+                  </div>
+                )}
                 <div className="text-xs text-gray-500 mt-1">
                   {lat?.toFixed(6)}, {lng?.toFixed(6)}
                 </div>
