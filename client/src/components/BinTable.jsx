@@ -36,8 +36,8 @@ export default function BinTable() {
         
         // Transform database bins to table format
         const transformedBins = data.map(bin => {
-          // Use current_fill_ga first, fallback to fill_rate (consistent with Beranda page)
-          const fillLevel = bin.current_fill_ga || bin.fill_rate || 0;
+          // Use current_fill_ga directly (no fallback to fill_rate)
+          const fillLevel = bin.current_fill_ga ?? 0;
           const capacity = bin.capacity || 100;
           const fillPercentage = Math.round((fillLevel / capacity) * 100);
           
