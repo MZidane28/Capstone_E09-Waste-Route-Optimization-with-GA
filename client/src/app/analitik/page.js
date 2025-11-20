@@ -133,9 +133,10 @@ export default function Analitik() {
     ? Math.abs(improvements.distance_saved_km).toFixed(1)
     : '0';
 
-  const utilizationGA = (ga?.summary?.total_distance && nn?.summary?.total_distance)
-    ? ((ga.summary.total_distance / nn.summary.total_distance) * 100).toFixed(0)
+  const utilizationGA = ga?.summary?.avg_utilization
+    ? (Math.abs(ga.summary.avg_utilization) * 100).toFixed(0)
     : '0';
+
 
   const periodTrips = (ga?.summary?.total_trucks || 0)
 
@@ -170,7 +171,7 @@ export default function Analitik() {
             
             {/* Utilization Card */}
             <SummaryCard
-              value={`${distanceSaved} %`}
+              value={`${utilizationGA}%`}
               label="Truck Utilization"
               icon={<TrendingUp size={24} />}
               iconBgColor="bg-purple-100"
