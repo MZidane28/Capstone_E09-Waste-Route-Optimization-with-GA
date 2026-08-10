@@ -77,7 +77,8 @@ export async function optimizeWithGA(bins, numTrucks, depot, options = {}) {
     generations = 50,
     populationSize = 100,
     mutationRate = 0.1,
-    crossoverRate = 0.8
+    crossoverRate = 0.8,
+    eliteCount = 5
   } = options;
   
   // Divide bins among trucks (balanced distribution)
@@ -98,12 +99,15 @@ export async function optimizeWithGA(bins, numTrucks, depot, options = {}) {
     
     if (bins.length === 0) continue;
     
-    // Initialize population with random permutations
+    // Initialize population with random permutations, seeded with a nearest
+    // neighbor tour. Starting purely at random leaves the GA unable to catch up
+    // with the greedy baseline within the generation budget.
     let population = [];
     for (let i = 0; i < populationSize; i++) {
       population.push(shuffle([...bins]));
     }
-    
+    population[0] = nearestNeighborOrder(bins, depot);
+
     // Evolution loop
     for (let gen = 0; gen < generations; gen++) {
       // Calculate fitness (lower distance = higher fitness)
@@ -113,10 +117,15 @@ export async function optimizeWithGA(bins, numTrucks, depot, options = {}) {
         return 1 / (metrics.totalDistance + 1); // Inverse distance as fitness
       });
       
+      // Elitism: carry the fittest routes into the next generation untouched
+      const newPopulation = fitness
+        .map((value, index) => ({ value, index }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, eliteCount)
+        .map(({ index }) => [...population[index]]);
+
       // Selection: Tournament selection
-      const newPopulation = [];
-      
-      for (let i = 0; i < populationSize; i++) {
+      while (newPopulation.length < populationSize) {
         if (Math.random() < crossoverRate) {
           // Crossover
           const parent1 = tournamentSelection(population, fitness);
@@ -128,14 +137,14 @@ export async function optimizeWithGA(bins, numTrucks, depot, options = {}) {
           newPopulation.push([...tournamentSelection(population, fitness)]);
         }
       }
-      
-      // Mutation
-      for (let individual of newPopulation) {
+
+      // Mutation (elites are left untouched)
+      for (let i = eliteCount; i < newPopulation.length; i++) {
         if (Math.random() < mutationRate) {
-          swapMutation(individual);
+          swapMutation(newPopulation[i]);
         }
       }
-      
+
       population = newPopulation;
     }
     
@@ -216,6 +225,34 @@ function swapMutation(individual) {
   const idx2 = Math.floor(Math.random() * individual.length);
   
   [individual[idx1], individual[idx2]] = [individual[idx2], individual[idx1]];
+}
+
+/**
+ * Order bins greedily by nearest neighbor, used to seed the GA population
+ */
+function nearestNeighborOrder(bins, depot) {
+  const order = [];
+  const remaining = [...bins];
+  let current = depot;
+
+  while (remaining.length > 0) {
+    let nearestIdx = 0;
+    let minDist = calculateDistance(current, remaining[0]);
+
+    for (let i = 1; i < remaining.length; i++) {
+      const dist = calculateDistance(current, remaining[i]);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestIdx = i;
+      }
+    }
+
+    current = remaining[nearestIdx];
+    order.push(current);
+    remaining.splice(nearestIdx, 1);
+  }
+
+  return order;
 }
 
 /**
