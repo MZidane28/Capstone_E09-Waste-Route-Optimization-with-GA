@@ -66,39 +66,78 @@ describe('API Module Tests', () => {
     });
   });
 
-  describe('getRandomBins', () => {
-    it('should fetch random bins', async () => {
-      const mockBins = [{ id: 1 }];
-      mockAxiosInstance.post.mockResolvedValue({ data: mockBins });
-      const result = await api.getRandomBins(2);
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/bins/random', { count: 2 });
+  describe('getTrashBins', () => {
+    it('should stay a legacy alias of getAllBins', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: [] });
+      await api.getTrashBins();
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/bins');
+      expect(api.getTrashBins).toBe(api.getAllBins);
     });
   });
 
-  describe('optimizeRoutes', () => {
-    it('should optimize routes', async () => {
-      const mockResult = { routes: [[0, 1, 0]] };
-      mockAxiosInstance.post.mockResolvedValue({ data: mockResult });
-      const result = await api.optimizeRoutes([]);
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/optimize', { bins: [] });
+  describe('simulation endpoints', () => {
+    it('should fetch simulation status', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { day: 3 } });
+      await api.getSimulationStatus();
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/simulation/status');
+    });
+
+    it('should initialize without clearing history by default', async () => {
+      mockAxiosInstance.post.mockResolvedValue({ data: { ok: true } });
+      await api.initializeSimulation();
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/simulation/initialize', {
+        clearHistory: false,
+      });
+    });
+
+    it('should pass the clearHistory flag through', async () => {
+      mockAxiosInstance.post.mockResolvedValue({ data: { ok: true } });
+      await api.initializeSimulation(true);
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/simulation/initialize', {
+        clearHistory: true,
+      });
+    });
+
+    it('should run a simulation day', async () => {
+      mockAxiosInstance.post.mockResolvedValue({ data: { day: 4 } });
+      await api.runSimulationDay();
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/simulation/run');
+    });
+
+    it('should clear simulation history', async () => {
+      mockAxiosInstance.delete.mockResolvedValue({ data: { ok: true } });
+      await api.clearSimulationHistory();
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/simulation/clear');
     });
   });
 
-  describe('getAllSolutions', () => {
-    it('should fetch all solutions', async () => {
-      const mockSolutions = [{ id: 1 }];
-      mockAxiosInstance.get.mockResolvedValue({ data: mockSolutions });
-      const result = await api.getAllSolutions();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/solutions');
+  describe('solution endpoints', () => {
+    it('should fetch solutions with no filters by default', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: [] });
+      await api.getSolutions();
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/solutions', { params: {} });
     });
-  });
 
-  describe('getSolutionById', () => {
-    it('should fetch solution by ID', async () => {
-      const mockSolution = { id: 1, routes: [] };
-      mockAxiosInstance.get.mockResolvedValue({ data: mockSolution });
-      const result = await api.getSolutionById(1);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/solutions/1');
+    it('should forward query params when fetching solutions', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: [] });
+      await api.getSolutions({ method: 'ga', day: 2 });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/solutions', {
+        params: { method: 'ga', day: 2 },
+      });
+    });
+
+    it('should fetch the GA vs NN comparison', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: {} });
+      await api.compareSolutions({ from: 1, to: 5 });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/solutions/compare', {
+        params: { from: 1, to: 5 },
+      });
+    });
+
+    it('should fetch the solutions summary', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: {} });
+      await api.getSolutionsSummary();
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/solutions/summary');
     });
   });
 });
