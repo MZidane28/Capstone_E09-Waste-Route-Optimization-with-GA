@@ -269,9 +269,14 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
 
 ### ✅ Test Status - 100% Passing!
 
-**Total Tests: 142 ✅**
-- **Client Tests**: 62/62 passing (100%) ✅
-- **Server Tests**: 80/80 passing (100%) ✅
+**Total Tests: 170 ✅**
+- **Client Tests**: 71/71 passing (100%) ✅
+- **Server Tests**: 99/99 passing (100%) ✅
+
+Fixture dan asersi disamakan dengan skema `Bin`/`Solution` yang berlaku
+sekarang; sebelumnya suite ini masih menguji skema lama (`demand`, `trucks`,
+`last_update`) dan endpoint yang sudah dihapus (`/bins/random`, layanan GA
+eksternal).
 
 ### Run Tests
 

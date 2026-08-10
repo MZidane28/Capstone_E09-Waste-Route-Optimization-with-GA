@@ -6,7 +6,6 @@ import {
   createBin,
   updateBin,
   deleteBin,
-  getRandomBins,
 } from '../../controllers/binController.js';
 import * as db from '../setup/testDb.js';
 
@@ -35,17 +34,19 @@ describe('Bin Controller Tests', () => {
       // Create test bins
       const testBins = [
         {
+          bin_id: 'BIN_001',
           name: 'Bin 1',
           location: { lat: -6.2088, lon: 106.8456 },
           capacity: 100,
-          demand: 50,
+          fill_rate: 50,
           is_real: true,
         },
         {
+          bin_id: 'BIN_002',
           name: 'Bin 2',
           location: { lat: -6.2089, lon: 106.8457 },
           capacity: 100,
-          demand: 75,
+          fill_rate: 75,
           is_real: false,
         },
       ];
@@ -85,10 +86,11 @@ describe('Bin Controller Tests', () => {
   describe('getBinById', () => {
     it('should return a bin by ID', async () => {
       const testBin = await Bin.create({
+        bin_id: 'BIN_010',
         name: 'Test Bin',
         location: { lat: -6.2088, lon: 106.8456 },
         capacity: 100,
-        demand: 60,
+        fill_rate: 60,
         is_real: true,
       });
 
@@ -99,7 +101,7 @@ describe('Bin Controller Tests', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       const response = res.json.mock.calls[0][0];
       expect(response.name).toBe('Test Bin');
-      expect(response.demand).toBe(60);
+      expect(response.fill_rate).toBe(60);
     });
 
     it('should return 404 if bin not found', async () => {
@@ -123,10 +125,11 @@ describe('Bin Controller Tests', () => {
   describe('createBin', () => {
     it('should create a new bin', async () => {
       req.body = {
+        bin_id: 'BIN_020',
         name: 'New Bin',
         location: { lat: -6.2088, lon: 106.8456 },
         capacity: 100,
-        demand: 45,
+        fill_rate: 45,
         is_real: true,
       };
 
@@ -134,14 +137,15 @@ describe('Bin Controller Tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(201);
       const response = res.json.mock.calls[0][0];
-      expect(response.statusCode).toBe(201);
+      expect(response.success).toBe(true);
       expect(response.message).toBe('Bin created successfully');
       expect(response.data.name).toBe('New Bin');
 
       // Verify bin was saved to database
       const savedBin = await Bin.findOne({ name: 'New Bin' });
       expect(savedBin).toBeTruthy();
-      expect(savedBin.demand).toBe(45);
+      expect(savedBin.bin_id).toBe('BIN_020');
+      expect(savedBin.fill_rate).toBe(45);
     });
 
     it('should handle validation errors', async () => {
@@ -159,17 +163,18 @@ describe('Bin Controller Tests', () => {
   describe('updateBin', () => {
     it('should update a bin', async () => {
       const testBin = await Bin.create({
+        bin_id: 'BIN_030',
         name: 'Old Name',
         location: { lat: -6.2088, lon: 106.8456 },
         capacity: 100,
-        demand: 50,
+        fill_rate: 50,
         is_real: true,
       });
 
       req.params.id = testBin._id.toString();
       req.body = {
         name: 'Updated Name',
-        demand: 80,
+        fill_rate: 80,
       };
 
       await updateBin(req, res);
@@ -178,7 +183,7 @@ describe('Bin Controller Tests', () => {
       const response = res.json.mock.calls[0][0];
       expect(response.message).toBe('Bin updated successfully');
       expect(response.data.name).toBe('Updated Name');
-      expect(response.data.demand).toBe(80);
+      expect(response.data.fill_rate).toBe(80);
     });
 
     it('should return 404 if bin not found', async () => {
@@ -194,10 +199,11 @@ describe('Bin Controller Tests', () => {
   describe('deleteBin', () => {
     it('should delete a bin', async () => {
       const testBin = await Bin.create({
+        bin_id: 'BIN_040',
         name: 'To Delete',
         location: { lat: -6.2088, lon: 106.8456 },
         capacity: 100,
-        demand: 50,
+        fill_rate: 50,
         is_real: true,
       });
 
@@ -222,47 +228,4 @@ describe('Bin Controller Tests', () => {
       expect(res.status).toHaveBeenCalledWith(404);
     });
   });
-
-  describe('getRandomBins', () => {
-    it('should return random bins', async () => {
-      // Create multiple bins
-      const bins = Array.from({ length: 10 }, (_, i) => ({
-        name: `Bin ${i + 1}`,
-        location: { lat: -6.2088 + i * 0.001, lon: 106.8456 + i * 0.001 },
-        capacity: 100,
-        demand: Math.floor(Math.random() * 100),
-        is_real: true,
-      }));
-
-      await Bin.insertMany(bins);
-
-      req.body = { count: 5 };
-
-      await getRandomBins(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      const response = res.json.mock.calls[0][0];
-      expect(response).toHaveLength(5);
-    });
-
-    it('should return 400 if count is invalid', async () => {
-      req.body = { count: -1 };
-
-      await getRandomBins(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        message: 'Please provide a valid count',
-      });
-    });
-
-    it('should handle missing count parameter', async () => {
-      req.body = {};
-
-      await getRandomBins(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-  });
 });
-
