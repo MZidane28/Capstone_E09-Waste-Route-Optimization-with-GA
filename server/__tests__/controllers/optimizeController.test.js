@@ -1,214 +1,180 @@
 import { jest } from '@jest/globals';
-import mongoose from 'mongoose';
 import { optimizeRoutes } from '../../controllers/optimizeController.js';
-import Solution from '../../models/Solution.js';
-import * as db from '../setup/testDb.js';
 
-// Setup test database
-beforeAll(async () => await db.connect());
-afterEach(async () => await db.clearDatabase());
-afterAll(async () => await db.closeDatabase());
+const DEPOT = { lat: -7.7391893, lng: 110.4026205 };
 
-// Mock fetch
-global.fetch = jest.fn();
+// Bins are passed in the request body, not read from the database — the
+// controller runs the GA in-process rather than calling an external service.
+const makeBins = (count, fillLevel = 90) =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `bin-${i + 1}`,
+    name: `Bin ${i + 1}`,
+    lat: DEPOT.lat + (i + 1) * 0.002,
+    lng: DEPOT.lng + (i + 1) * 0.0015,
+    fillLevel,
+  }));
 
 describe('Optimize Controller Tests', () => {
   let req, res;
 
   beforeEach(() => {
-    req = {
-      body: {},
-    };
+    req = { body: {} };
     res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
     };
-    jest.clearAllMocks();
   });
 
   describe('optimizeRoutes', () => {
-    const mockBins = [
-      {
-        id: 'bin1',
-        name: 'Bin 1',
-        location: { lat: -6.2088, lon: 106.8456 },
-        capacity: 100,
-        demand: 50,
-      },
-      {
-        id: 'bin2',
-        name: 'Bin 2',
-        location: { lat: -6.2089, lon: 106.8457 },
-        capacity: 100,
-        demand: 75,
-      },
-      {
-        id: 'bin3',
-        name: 'Bin 3',
-        location: { lat: -6.2090, lon: 106.8458 },
-        capacity: 100,
-        demand: 60,
-      },
-    ];
-
-    const mockGAResponse = {
-      total_distance: 15.5,
-      total_time: 0.3875,
-      utilization: 85.5,
-      emissions: 3.1,
-      trucks: [
-        {
-          truck_no: 1,
-          distance: 8.2,
-          load: 125,
-          bins: [
-            { bin_id: new mongoose.Types.ObjectId(), visit_order: 1, demand: 50 },
-            { bin_id: new mongoose.Types.ObjectId(), visit_order: 2, demand: 75 },
-          ],
-        },
-        {
-          truck_no: 2,
-          distance: 7.3,
-          load: 60,
-          bins: [{ bin_id: new mongoose.Types.ObjectId(), visit_order: 1, demand: 60 }],
-        },
-      ],
-    };
-
-    it('should successfully optimize routes with GA service', async () => {
-      req.body = {
-        bins: mockBins,
-        num_trucks: 2,
-        population_size: 50,
-        generations: 100,
-      };
-
-      // Mock successful GA service response
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGAResponse,
-      });
+    it('should optimize routes for bins that need collection', async () => {
+      req.body = { bins: makeBins(9), numTrucks: 3, depot: DEPOT };
 
       await optimizeRoutes(req, res);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/run_ga'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
-
-      expect(res.json).toHaveBeenCalled();
       const response = res.json.mock.calls[0][0];
-      
       expect(response.success).toBe(true);
-      expect(response.message).toBe('Optimization completed successfully');
-      expect(response.data.total_distance).toBe(15.5);
-      expect(response.data.num_trucks).toBe(2);
-      expect(response.solution_id).toBeDefined();
-
-      // Verify solution was saved to database
-      const savedSolution = await Solution.findById(response.solution_id);
-      expect(savedSolution).toBeTruthy();
-      expect(savedSolution.total_distance).toBe(15.5);
-      expect(savedSolution.trucks).toHaveLength(2);
+      expect(response.data.routes).toHaveLength(3);
+      expect(response.data.totalBins).toBe(9);
+      expect(response.data.totalDistance).toBeGreaterThan(0);
     });
 
-    it('should return 400 if no bins are selected', async () => {
+    it('should visit every bin exactly once across all routes', async () => {
+      req.body = { bins: makeBins(9), numTrucks: 3, depot: DEPOT };
+
+      await optimizeRoutes(req, res);
+
+      const { routes } = res.json.mock.calls[0][0].data;
+      const visited = routes.flatMap((route) => route.bins.map((bin) => bin.id));
+
+      expect(visited).toHaveLength(9);
+      expect(new Set(visited).size).toBe(9);
+    });
+
+    it('should start and end every route at the depot', async () => {
+      req.body = { bins: makeBins(6), numTrucks: 2, depot: DEPOT };
+
+      await optimizeRoutes(req, res);
+
+      const { routes } = res.json.mock.calls[0][0].data;
+      routes.forEach((route) => {
+        expect(route.points[0]).toEqual([DEPOT.lat, DEPOT.lng]);
+        expect(route.points[route.points.length - 1]).toEqual([DEPOT.lat, DEPOT.lng]);
+      });
+    });
+
+    it('should default to 3 trucks when numTrucks is not provided', async () => {
+      req.body = { bins: makeBins(6), depot: DEPOT };
+
+      await optimizeRoutes(req, res);
+
+      const response = res.json.mock.calls[0][0];
+      expect(response.data.routes).toHaveLength(3);
+    });
+
+    it('should skip bins below the 80% fill threshold', async () => {
       req.body = {
-        bins: [],
-        num_trucks: 2,
+        bins: [...makeBins(4, 90), ...makeBins(4, 30)],
+        numTrucks: 2,
+        depot: DEPOT,
       };
+
+      await optimizeRoutes(req, res);
+
+      const response = res.json.mock.calls[0][0];
+      expect(response.data.totalBins).toBe(4);
+    });
+
+    it('should return empty routes when no bin needs collection', async () => {
+      req.body = { bins: makeBins(5, 20), numTrucks: 2, depot: DEPOT };
+
+      await optimizeRoutes(req, res);
+
+      const response = res.json.mock.calls[0][0];
+      expect(response.success).toBe(true);
+      expect(response.data.totalBins).toBe(0);
+      expect(response.data.totalDistance).toBe(0);
+      expect(response.data.routes).toHaveLength(2);
+      response.data.routes.forEach((route) => expect(route.bins).toEqual([]));
+    });
+
+    it('should return 400 if no bins are provided', async () => {
+      req.body = { bins: [], numTrucks: 3, depot: DEPOT };
 
       await optimizeRoutes(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        error: 'No bins selected',
+        success: false,
+        error: 'Bins data is required',
       });
     });
 
-    it('should use default values if not provided', async () => {
-      req.body = {
-        bins: mockBins,
-      };
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGAResponse,
-      });
+    it('should return 400 if depot is missing', async () => {
+      req.body = { bins: makeBins(3), numTrucks: 3 };
 
       await optimizeRoutes(req, res);
 
-      const fetchCall = global.fetch.mock.calls[0];
-      const requestBody = JSON.parse(fetchCall[1].body);
-      
-      expect(requestBody.num_trucks).toBe(3);
-      expect(requestBody.population_size).toBe(100);
-      expect(requestBody.generations).toBe(500);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Depot location is required',
+      });
     });
 
-    it('should handle GA service error', async () => {
-      req.body = {
-        bins: mockBins,
-        num_trucks: 2,
-      };
-
-      global.fetch.mockResolvedValueOnce({
-        ok: false,
-        statusText: 'Internal Server Error',
-      });
+    it('should not produce a route worse than the greedy nearest neighbor order', async () => {
+      // The GA seeds its population with a nearest neighbor tour, so its result
+      // can never be worse than that baseline.
+      const bins = makeBins(12);
+      req.body = { bins, numTrucks: 1, depot: DEPOT };
 
       await optimizeRoutes(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: expect.stringContaining('GA Service error'),
-        })
-      );
+      const { routes } = res.json.mock.calls[0][0].data;
+
+      // Nearest neighbor baseline over the same bins
+      const remaining = [...bins];
+      let current = { lat: DEPOT.lat, lng: DEPOT.lng };
+      let baseline = 0;
+      const haversine = (a, b) => {
+        const R = 6371;
+        const toRad = (d) => (d * Math.PI) / 180;
+        const dLat = toRad(b.lat - a.lat);
+        const dLon = toRad(b.lng - a.lng);
+        const x =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+      };
+
+      while (remaining.length) {
+        let k = 0;
+        let min = haversine(current, remaining[0]);
+        for (let i = 1; i < remaining.length; i++) {
+          const d = haversine(current, remaining[i]);
+          if (d < min) {
+            min = d;
+            k = i;
+          }
+        }
+        baseline += min;
+        current = remaining[k];
+        remaining.splice(k, 1);
+      }
+      baseline += haversine(current, { lat: DEPOT.lat, lng: DEPOT.lng });
+
+      expect(routes[0].totalDistance).toBeLessThanOrEqual(baseline + 1e-6);
     });
 
-    it('should return mock data if GA service is unavailable', async () => {
-      req.body = {
-        bins: mockBins,
-        num_trucks: 2,
-      };
-
-      // Mock fetch failure (service not available)
-      global.fetch.mockRejectedValueOnce(new Error('fetch failed'));
+    it('should return 400 if the depot is missing a coordinate', async () => {
+      req.body = { bins: makeBins(3), numTrucks: 1, depot: { lat: DEPOT.lat } };
 
       await optimizeRoutes(req, res);
 
-      expect(res.json).toHaveBeenCalled();
-      const response = res.json.mock.calls[0][0];
-      
-      expect(response.success).toBe(false);
-      expect(response.message).toContain('GA Service not available');
-      expect(response.mock).toBe(true);
-    });
-
-    it('should calculate total_time from distance if not provided', async () => {
-      req.body = {
-        bins: mockBins,
-        num_trucks: 2,
-      };
-
-      const responseWithoutTime = { ...mockGAResponse };
-      delete responseWithoutTime.total_time;
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => responseWithoutTime,
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Depot location is required',
       });
-
-      await optimizeRoutes(req, res);
-
-      const savedSolution = await Solution.findOne({});
-      expect(savedSolution.total_time).toBeCloseTo(15.5 / 40, 5);
     });
   });
 });
-
-
